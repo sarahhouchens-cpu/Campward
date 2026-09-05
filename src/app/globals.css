@@ -1,0 +1,608 @@
+/* ==========================================================================
+   Campward — a field logbook, not a dashboard.
+   Paper, ink, and stitched canvas. No gradients, no glass, no drop shadows
+   pretending to be depth. Texture comes from grain and rules.
+   ========================================================================== */
+
+:root {
+  --moss:   #3F4E3B;  /* Forest Moss   — primary */
+  --sage:   #8A9A5B;  /* Sage          — secondary */
+  --canvas: #E4D8BE;  /* Weathered Canvas — cards */
+  --dust:   #A87C4F;  /* Trail Dust    — borders, accents */
+  --dusk:   #4C6B73;  /* Dusk Lake     — links, weather */
+  --bone:   #F4EFE4;  /* Bone          — page */
+  --char:   #2B2620;  /* Campfire Char — ink */
+
+  --ink-soft:   color-mix(in srgb, var(--char) 62%, var(--bone));
+  --ink-faint:  color-mix(in srgb, var(--char) 40%, var(--bone));
+  --rule:       color-mix(in srgb, var(--dust) 45%, transparent);
+  --rule-firm:  color-mix(in srgb, var(--dust) 78%, transparent);
+  --canvas-deep: color-mix(in srgb, var(--canvas) 88%, var(--dust));
+
+  --serif: var(--font-fraunces), "Fraunces", Lora, Georgia, "Times New Roman", serif;
+  --sans:  var(--font-karla), "Karla", "Source Serif 4", system-ui, sans-serif;
+  --hand:  var(--font-caveat), "Caveat", "Segoe Script", cursive;
+
+  --measure: 68ch;
+  --edge: 2px;
+}
+
+/* ---- reset ------------------------------------------------------------- */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--bone);
+  color: var(--char);
+  font-family: var(--sans);
+  font-size: 16.5px;
+  line-height: 1.62;
+  /* Paper grain: fine turbulence, low opacity. Cheap, tiles forever, and reads
+     as fibre rather than noise at normal viewing distance. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23g)' opacity='0.055'/%3E%3C/svg%3E");
+}
+
+img { max-width: 100%; height: auto; }
+
+/* ---- type -------------------------------------------------------------- */
+
+h1, h2, h3, h4 {
+  font-family: var(--serif);
+  font-weight: 600;
+  color: var(--moss);
+  line-height: 1.18;
+  margin: 0 0 .4em;
+  letter-spacing: -0.012em;
+}
+
+h1 { font-size: clamp(2rem, 4.4vw, 2.9rem); }
+h2 { font-size: clamp(1.35rem, 2.4vw, 1.7rem); }
+h3 { font-size: 1.16rem; }
+h4 { font-size: 1rem; letter-spacing: 0; }
+
+p { margin: 0 0 1em; max-width: var(--measure); }
+
+a {
+  color: var(--dusk);
+  text-decoration-color: color-mix(in srgb, var(--dusk) 40%, transparent);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+a:hover { text-decoration-color: var(--dusk); }
+
+small { font-size: .82rem; }
+
+/* The handwritten voice. Used for asides and marginalia only — never for
+   anything a person has to read quickly. */
+.hand {
+  font-family: var(--hand);
+  font-size: 1.32em;
+  line-height: 1.25;
+  color: var(--dust);
+}
+
+.eyebrow {
+  font-family: var(--sans);
+  font-size: .715rem;
+  font-weight: 700;
+  letter-spacing: .17em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .5rem;
+}
+
+.lede { font-size: 1.06rem; color: var(--ink-soft); }
+.muted { color: var(--ink-soft); }
+.faint { color: var(--ink-faint); }
+
+/* ---- layout ------------------------------------------------------------ */
+
+.shell {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 clamp(1rem, 4vw, 2.25rem) 5rem;
+}
+
+.stack     { display: flex; flex-direction: column; gap: 1.15rem; }
+.stack-sm  { display: flex; flex-direction: column; gap: .55rem; }
+.row       { display: flex; gap: .7rem; align-items: center; flex-wrap: wrap; }
+.row-tight { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; }
+.spread    { display: flex; gap: 1rem; align-items: baseline; justify-content: space-between; flex-wrap: wrap; }
+.grow      { flex: 1 1 auto; }
+
+.section { margin: 2.75rem 0 0; }
+.section > header { margin-bottom: 1rem; }
+
+/* Deliberately uneven: the sidebar is narrower than a half, so the page never
+   settles into a symmetrical grid. */
+.split {
+  display: grid;
+  gap: clamp(1.25rem, 3vw, 2.25rem);
+  grid-template-columns: minmax(0, 1.62fr) minmax(0, 1fr);
+  align-items: start;
+}
+@media (max-width: 860px) { .split { grid-template-columns: 1fr; } }
+
+.cards {
+  display: grid;
+  gap: 1.1rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 275px), 1fr));
+}
+
+/* ---- masthead ---------------------------------------------------------- */
+
+.masthead {
+  border-bottom: var(--edge) solid var(--char);
+  margin-bottom: 1.75rem;
+  padding: 1.6rem 0 0;
+  background-image: linear-gradient(var(--rule), var(--rule));
+  background-size: 100% 1px;
+  background-position: 0 calc(100% - 6px);
+  background-repeat: no-repeat;
+}
+
+.masthead-inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 clamp(1rem, 4vw, 2.25rem);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: .6rem;
+  text-decoration: none;
+  color: var(--char);
+}
+.wordmark strong {
+  font-family: var(--serif);
+  font-size: 1.72rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--moss);
+  line-height: 1;
+}
+.wordmark span { display: block; }
+.wordmark .tagline {
+  font-family: var(--hand);
+  font-size: 1.02rem;
+  color: var(--dust);
+  line-height: 1;
+  margin-top: .18rem;
+}
+
+nav.trail { display: flex; gap: .15rem; flex-wrap: wrap; padding-bottom: .55rem; }
+
+nav.trail a {
+  font-size: .87rem;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-decoration: none;
+  padding: .34rem .68rem .3rem;
+  border-bottom: 2px solid transparent;
+}
+nav.trail a:hover { color: var(--moss); border-bottom-color: var(--rule-firm); }
+nav.trail a[data-active="true"] {
+  color: var(--moss);
+  border-bottom-color: var(--moss);
+}
+
+/* ---- paper & cards ----------------------------------------------------- */
+
+.card {
+  position: relative;
+  background: var(--canvas);
+  border: var(--edge) solid var(--char);
+  padding: 1.15rem 1.25rem;
+  /* Uneven corners read as a cut edge rather than a rounded rectangle. */
+  border-radius: 10px 3px 12px 4px;
+}
+
+.card > :last-child { margin-bottom: 0; }
+
+.card-quiet {
+  background: color-mix(in srgb, var(--canvas) 42%, var(--bone));
+  border-color: var(--rule-firm);
+}
+
+.card-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  transition: transform .12s ease, border-color .12s ease;
+}
+.card-link:hover {
+  transform: translate(-1px, -2px);
+  border-color: var(--moss);
+}
+.card-link:hover h3 { text-decoration: underline; text-decoration-color: var(--rule-firm); }
+
+/* Sewn edge — the stitched canvas detail, drawn with a dashed rule. */
+.stitched::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border: 1px dashed color-mix(in srgb, var(--dust) 55%, transparent);
+  border-radius: 7px 2px 9px 3px;
+  pointer-events: none;
+}
+
+/* Ruled-notebook block for free text. */
+.ruled {
+  font-family: var(--serif);
+  font-size: 1rem;
+  line-height: 1.85;
+  white-space: pre-wrap;
+  padding-bottom: 2px;
+  background-image: linear-gradient(transparent calc(1.85em - 1px), var(--rule) 0);
+  background-size: 100% 1.85em;
+}
+
+.field-note {
+  border-left: 3px solid var(--sage);
+  padding: .1rem 0 .1rem .9rem;
+  color: var(--ink-soft);
+  font-family: var(--serif);
+}
+
+/* ---- badges, stamps, tallies ------------------------------------------- */
+
+.tag {
+  display: inline-block;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: .18rem .5rem;
+  border: 1px solid var(--rule-firm);
+  border-radius: 2px;
+  color: var(--ink-soft);
+  background: color-mix(in srgb, var(--bone) 55%, transparent);
+  white-space: nowrap;
+}
+.tag-moss   { border-color: var(--moss); color: var(--moss); }
+.tag-dusk   { border-color: var(--dusk); color: var(--dusk); }
+.tag-dust   { border-color: var(--dust); color: var(--dust); }
+.tag-sage   { border-color: var(--sage); color: color-mix(in srgb, var(--sage) 72%, var(--char)); }
+
+/* Rubber-stamped, slightly askew, like it was pressed by hand. */
+.stamp {
+  display: inline-block;
+  transform: rotate(-4deg);
+  border: 2px solid var(--dust);
+  border-radius: 3px;
+  padding: .18rem .55rem;
+  font-family: var(--serif);
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--dust);
+  opacity: .82;
+}
+.stamp-moss { border-color: var(--moss); color: var(--moss); }
+
+.tally {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  border: var(--edge) solid var(--char);
+  border-radius: 8px 3px 8px 3px;
+  overflow: hidden;
+  background: var(--canvas);
+}
+.tally > div {
+  flex: 1 1 118px;
+  padding: .8rem .9rem .7rem;
+  border-right: 1px solid var(--rule);
+}
+.tally > div:last-child { border-right: 0; }
+.tally b {
+  display: block;
+  font-family: var(--serif);
+  font-size: 1.72rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--moss);
+}
+.tally small {
+  display: block;
+  margin-top: .28rem;
+  font-size: .7rem;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: 700;
+  text-wrap: balance;
+}
+
+/* ---- buttons ----------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  font-family: var(--sans);
+  font-size: .875rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  padding: .48rem .95rem;
+  border: var(--edge) solid var(--char);
+  border-radius: 7px 3px 8px 3px;
+  background: var(--canvas);
+  color: var(--char);
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform .1s ease, background .12s ease;
+}
+.btn:hover { transform: translateY(-1px); background: var(--canvas-deep); }
+.btn:active { transform: translateY(0); }
+
+.btn-primary { background: var(--moss); color: var(--bone); border-color: var(--moss); }
+.btn-primary:hover { background: color-mix(in srgb, var(--moss) 86%, var(--char)); }
+
+.btn-small { font-size: .76rem; padding: .3rem .62rem; border-width: 1.5px; }
+
+.btn-plain {
+  border: 0;
+  background: none;
+  padding: .2rem .3rem;
+  color: var(--ink-faint);
+  font-size: .74rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-plain:hover { color: var(--dust); text-decoration: underline; }
+
+/* ---- forms ------------------------------------------------------------- */
+
+label, .label {
+  display: block;
+  font-size: .715rem;
+  font-weight: 700;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: .3rem;
+}
+
+input[type="text"], input[type="date"], input[type="number"],
+input[type="search"], select, textarea {
+  width: 100%;
+  font-family: var(--sans);
+  font-size: 1rem;
+  color: var(--char);
+  background: color-mix(in srgb, var(--bone) 72%, var(--canvas));
+  border: 0;
+  border-bottom: 1.5px solid var(--rule-firm);
+  border-radius: 2px 2px 0 0;
+  padding: .45rem .55rem;
+}
+textarea { font-family: var(--serif); line-height: 1.7; resize: vertical; min-height: 5.5rem; }
+
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--sage);
+  outline-offset: 1px;
+  border-bottom-color: var(--moss);
+}
+
+input[type="checkbox"], input[type="radio"] {
+  accent-color: var(--moss);
+  width: 1.05rem; height: 1.05rem;
+  margin: 0;
+  cursor: pointer;
+}
+
+.field { margin-bottom: .95rem; }
+.field-row {
+  display: grid;
+  gap: .95rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  margin-bottom: .95rem;
+}
+
+fieldset { border: 0; padding: 0; margin: 0 0 .95rem; }
+legend { padding: 0; }
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .92rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--char);
+  margin: 0;
+  cursor: pointer;
+}
+
+/* ---- lists ------------------------------------------------------------- */
+
+.entries { list-style: none; margin: 0; padding: 0; }
+
+.entries > li {
+  padding: .85rem 0;
+  border-bottom: 1px dashed var(--rule);
+}
+.entries > li:first-child { padding-top: 0; }
+.entries > li:last-child { border-bottom: 0; padding-bottom: 0; }
+
+.checklist { list-style: none; margin: 0; padding: 0; }
+.checklist > li {
+  display: flex;
+  align-items: baseline;
+  gap: .55rem;
+  padding: .3rem 0;
+  border-bottom: 1px dotted var(--rule);
+}
+.checklist > li:last-child { border-bottom: 0; }
+.packed { color: var(--ink-faint); text-decoration: line-through; }
+
+/* ---- empty states ------------------------------------------------------ */
+
+.empty {
+  border: 1.5px dashed var(--rule-firm);
+  border-radius: 10px 3px 10px 3px;
+  padding: 1.6rem 1.4rem;
+  text-align: center;
+  color: var(--ink-soft);
+  background: color-mix(in srgb, var(--canvas) 30%, transparent);
+}
+.empty p { margin: 0 auto .8rem; max-width: 44ch; }
+.empty p:last-child { margin-bottom: 0; }
+
+/* ---- ratings ----------------------------------------------------------- */
+
+.rating { display: inline-flex; gap: .1rem; align-items: center; color: var(--dust); }
+.rating svg { width: 15px; height: 15px; }
+.rating .off { opacity: .26; }
+
+/* Radio group styled as pickable marks — no JS. */
+.rating-input { display: flex; gap: .3rem; align-items: center; }
+.rating-input input { position: absolute; opacity: 0; pointer-events: none; }
+.rating-input label {
+  margin: 0;
+  padding: .22rem .48rem;
+  border: 1.5px solid var(--rule-firm);
+  border-radius: 5px 2px 5px 2px;
+  font-family: var(--serif);
+  font-size: .92rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+  background: color-mix(in srgb, var(--bone) 60%, transparent);
+}
+.rating-input label:hover { border-color: var(--dust); color: var(--dust); }
+.rating-input input:checked + label {
+  background: var(--moss);
+  border-color: var(--moss);
+  color: var(--bone);
+}
+.rating-input input:focus-visible + label { outline: 2px solid var(--sage); outline-offset: 1px; }
+
+/* ---- weather ----------------------------------------------------------- */
+
+.forecast {
+  display: grid;
+  gap: .6rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 152px), 1fr));
+}
+.forecast-day {
+  border: 1px solid var(--rule-firm);
+  border-radius: 7px 2px 7px 2px;
+  padding: .6rem .7rem;
+  background: color-mix(in srgb, var(--dusk) 7%, var(--bone));
+}
+.forecast-day .when {
+  font-size: .7rem; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--dusk);
+}
+.forecast-day .temp {
+  font-family: var(--serif); font-size: 1.5rem; font-weight: 600;
+  color: var(--char); line-height: 1.1;
+}
+.forecast-day .sky { font-size: .84rem; color: var(--ink-soft); line-height: 1.35; }
+
+.alert {
+  border: var(--edge) solid var(--dust);
+  border-left-width: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--dust) 12%, var(--bone));
+  padding: .7rem .9rem;
+}
+
+/* ---- map --------------------------------------------------------------- */
+
+.map-frame {
+  border: var(--edge) solid var(--char);
+  border-radius: 8px 3px 8px 3px;
+  overflow: hidden;
+  line-height: 0;
+  background: var(--canvas-deep);
+}
+.map-frame iframe { width: 100%; height: 230px; border: 0; filter: sepia(.18) saturate(.88); }
+
+/* ---- misc -------------------------------------------------------------- */
+
+hr.rule {
+  border: 0;
+  height: 1px;
+  background: var(--rule);
+  margin: 1.4rem 0;
+}
+
+.crumb {
+  font-size: .78rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-faint);
+  text-decoration: none;
+  display: inline-block;
+  margin-bottom: .5rem;
+}
+.crumb:hover { color: var(--dust); }
+
+details.drawer > summary {
+  cursor: pointer;
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--dusk);
+  list-style: none;
+  padding: .35rem 0;
+}
+details.drawer > summary::-webkit-details-marker { display: none; }
+details.drawer > summary::before { content: "＋ "; }
+details.drawer[open] > summary::before { content: "− "; }
+details.drawer > summary:hover { color: var(--moss); }
+
+details.drawer > summary.row-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .75rem;
+  flex-wrap: wrap;
+  padding: .1rem 0;
+  font-size: 1rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--char);
+}
+details.drawer > summary.row-summary::before { content: none; }
+details.drawer > summary.row-summary:hover { color: var(--char); }
+details.drawer > summary.row-summary:hover .row-name { text-decoration: underline; }
+details.drawer[open] > summary.row-summary .row-name { color: var(--moss); }
+
+.table-scroll { overflow-x: auto; }
+
+footer.colophon {
+  margin-top: 4rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
+  font-size: .82rem;
+  color: var(--ink-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+  .card-link:hover, .btn:hover { transform: none; }
+}
