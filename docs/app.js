@@ -1357,7 +1357,7 @@ function renderBanner() {
     <span>${Store.error
       ? "Couldn&rsquo;t reach the shared logbook (" + esc(Store.error) + "), so this is saving to this browser only."
       : "Saving to this browser only — entries here won&rsquo;t reach your other devices or anyone else."}
-    <a href="https://github.com/sarahhouchens-cpu/Campward/blob/main/docs/SETUP.md" target="_blank" rel="noreferrer">How to share one logbook</a></span>`;
+    <a href="https://github.com/sarahhouchens-cpu/Campward/blob/HEAD/docs/SETUP.md" target="_blank" rel="noreferrer">How to share one logbook</a></span>`;
 }
 
 window.addEventListener("hashchange", render);
