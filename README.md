@@ -16,7 +16,16 @@ no accounts, no sign-in, no cloud.
 | **Weather** | Forecast, active alerts, and packing hints derived from the forecast ("Rain likely — bring the shells"). |
 | **Meals** | Meals per trip with ingredients; the ingredients roll up into one shopping list you check off as you buy. |
 
-## Running it
+## Two ways to run it
+
+| | |
+|---|---|
+| **`docs/`** | A static version for **GitHub Pages** — a link that works from any phone or laptop. Same features, same design. Saves to your browser by default; point it at a free Supabase project (see `docs/SETUP.md`) and you and your partner share one logbook. |
+| **repository root** | The Next.js version below, which keeps everything in one SQLite file on your own machine. Nothing leaves the house, but it only runs where you run it. |
+
+Both are the full six features. Pick whichever fits how you want to use it.
+
+## Running the Next.js version
 
 Requires **Node 22.5 or newer** — the database uses Node's built-in SQLite, so
 there is nothing to compile and no database server to install.

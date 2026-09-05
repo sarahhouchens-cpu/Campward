@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Campward — field logbook</title>
+<meta name="description" content="Trips, campsites, hikes, gear, weather and meals, kept in one logbook.">
+<link rel="icon" href="logo/campward-icon-only.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Karla:wght@400;600;700&display=swap">
+<style>
+/* ==========================================================================
+   Campward — a field logbook, not a dashboard.
+   Paper, ink and stitched canvas. Texture comes from grain and rules, never
+   gradients or glass. Dark mode is the brand's own on-dark treatment.
+   ========================================================================== */
+
+:root {
+  --moss:#3F4E3B; --sage:#8A9A5B; --canvas:#E4D8BE; --dust:#A87C4F;
+  --dusk:#4C6B73; --bone:#F4EFE4; --char:#2B2620; --glow:#FFF8E7;
+
+  --ground:#F4EFE4; --surface:#E4D8BE; --surface-2:#EDE4CE;
+  --ink:#2B2620; --ink-soft:#5C544A; --ink-faint:#857B6D;
+  --heading:#3F4E3B; --line:#C3A882; --line-soft:#D8C4A2;
+  --accent:#3F4E3B; --accent-ink:#F4EFE4; --link:#41606A;
+  --warn:#8A5A2B; --edge:#2B2620; --map-filter:sepia(.18) saturate(.88);
+
+  --serif:"Fraunces",Lora,Georgia,"Times New Roman",serif;
+  --sans:"Karla","Source Serif 4",system-ui,sans-serif;
+  --hand:"Caveat","Segoe Script",cursive;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:#1C1A16; --surface:#2A2E25; --surface-2:#23261F;
+    --ink:#EFE7D6; --ink-soft:#BCB3A1; --ink-faint:#8D8574;
+    --heading:#A9BC79; --line:#55503F; --line-soft:#3D3A2E;
+    --accent:#8A9A5B; --accent-ink:#1C1A16; --link:#8FB4BD;
+    --warn:#D2A06A; --edge:#0E0D0B; --map-filter:sepia(.25) saturate(.7) brightness(.78);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:#1C1A16; --surface:#2A2E25; --surface-2:#23261F;
+  --ink:#EFE7D6; --ink-soft:#BCB3A1; --ink-faint:#8D8574;
+  --heading:#A9BC79; --line:#55503F; --line-soft:#3D3A2E;
+  --accent:#8A9A5B; --accent-ink:#1C1A16; --link:#8FB4BD;
+  --warn:#D2A06A; --edge:#0E0D0B; --map-filter:sepia(.25) saturate(.7) brightness(.78);
+}
+
+* { box-sizing:border-box; }
+html { -webkit-text-size-adjust:100%; }
+body {
+  margin:0; min-height:100vh; background-color:var(--ground); color:var(--ink);
+  font-family:var(--sans); font-size:16.5px; line-height:1.62;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23g)' opacity='0.06'/%3E%3C/svg%3E");
+}
+img { max-width:100%; height:auto; }
+
+h1,h2,h3 {
+  font-family:var(--serif); font-weight:700; color:var(--heading);
+  line-height:1.18; letter-spacing:-0.012em; margin:0 0 .4em; text-wrap:balance;
+}
+h1 { font-size:clamp(1.9rem,4.2vw,2.75rem); }
+h2 { font-size:clamp(1.3rem,2.3vw,1.65rem); }
+h3 { font-size:1.14rem; }
+p { margin:0 0 1em; max-width:66ch; }
+a { color:var(--link); text-underline-offset:3px; }
+:focus-visible { outline:2px solid var(--sage); outline-offset:2px; }
+
+.hand { font-family:var(--hand); font-size:1.3em; line-height:1.25; color:var(--dust); }
+:root[data-theme="dark"] .hand, :root:not([data-theme="light"]) .hand { color:var(--warn); }
+.eyebrow { font-size:.7rem; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--ink-faint); margin:0 0 .5rem; }
+.lede { font-size:1.05rem; color:var(--ink-soft); }
+.muted { color:var(--ink-soft); }
+.faint { color:var(--ink-faint); }
+.nums { font-variant-numeric:tabular-nums; }
+.vh { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+
+/* ---- layout ---- */
+.shell { max-width:1060px; margin:0 auto; padding:0 clamp(1rem,4vw,2.25rem) 4rem; }
+.stack { display:flex; flex-direction:column; gap:1.1rem; }
+.stack-sm { display:flex; flex-direction:column; gap:.5rem; }
+.row { display:flex; gap:.7rem; align-items:center; flex-wrap:wrap; }
+.row-tight { display:flex; gap:.4rem; align-items:center; flex-wrap:wrap; }
+.spread { display:flex; gap:1rem; align-items:baseline; justify-content:space-between; flex-wrap:wrap; }
+.grow { flex:1 1 auto; min-width:0; }
+.section { margin-top:2.5rem; }
+/* Deliberately uneven — the page never settles into a symmetrical grid. */
+.split { display:grid; gap:clamp(1.25rem,3vw,2.25rem); grid-template-columns:minmax(0,1.62fr) minmax(0,1fr); align-items:start; }
+@media (max-width:860px) { .split { grid-template-columns:1fr; } }
+.cards { display:grid; gap:1rem; grid-template-columns:repeat(auto-fill,minmax(min(100%,265px),1fr)); }
+
+/* ---- masthead & lockup ---- */
+.masthead { border-bottom:2px solid var(--edge); padding-top:1.4rem; margin-bottom:1.6rem; }
+.masthead-inner { max-width:1060px; margin:0 auto; padding:0 clamp(1rem,4vw,2.25rem);
+  display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:1rem; }
+.lockup { display:inline-flex; align-items:center; gap:.6rem; text-decoration:none; }
+.lockup-word { display:block; font-family:var(--serif); font-size:1.7rem; font-weight:700; letter-spacing:-0.015em; line-height:1; color:var(--heading); }
+.lockup-tag { display:block; font-size:.6rem; font-weight:700; letter-spacing:.24em; text-transform:uppercase; color:var(--dust); line-height:1; margin-top:.32rem; }
+.lockup[data-tone="dark"] .lockup-word { color:var(--bone); }
+.lockup[data-tone="dark"] .lockup-tag { color:var(--bone); opacity:.72; }
+a.lockup:hover .lockup-word { color:var(--sage); }
+
+/* A strand of string lights from the mark — the one piece of ornament. */
+.lights { height:28px; margin-top:.85rem; background-repeat:repeat-x; background-size:180px 28px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='28'%3E%3Cpath d='M0 3 Q90 25 180 3' fill='none' stroke='%23A87C4F' stroke-width='1.1'/%3E%3Cg stroke='%23A87C4F' stroke-width='.9'%3E%3Cline x1='45' y1='11.2' x2='45' y2='12.4'/%3E%3Cline x1='90' y1='14' x2='90' y2='15.2'/%3E%3Cline x1='135' y1='11.2' x2='135' y2='12.4'/%3E%3C/g%3E%3Cg fill='%23F4EFE4' stroke='%233F4E3B' stroke-width='.7'%3E%3Ccircle cx='45' cy='15.6' r='3.2'/%3E%3Ccircle cx='90' cy='18.4' r='3.2'/%3E%3Ccircle cx='135' cy='15.6' r='3.2'/%3E%3C/g%3E%3C/svg%3E"); }
+.lights-dark { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='28'%3E%3Cpath d='M0 3 Q90 25 180 3' fill='none' stroke='%23F4EFE4' stroke-opacity='.42' stroke-width='1.1'/%3E%3Cg stroke='%23F4EFE4' stroke-opacity='.42' stroke-width='.9'%3E%3Cline x1='45' y1='11.2' x2='45' y2='12.4'/%3E%3Cline x1='90' y1='14' x2='90' y2='15.2'/%3E%3Cline x1='135' y1='11.2' x2='135' y2='12.4'/%3E%3C/g%3E%3Cg fill='%23FFF8E7'%3E%3Ccircle cx='45' cy='15.6' r='3.2'/%3E%3Ccircle cx='90' cy='18.4' r='3.2'/%3E%3Ccircle cx='135' cy='15.6' r='3.2'/%3E%3C/g%3E%3C/svg%3E"); }
+
+nav.trail { display:flex; gap:.1rem; flex-wrap:wrap; padding-bottom:.5rem; }
+nav.trail a { font-size:.84rem; letter-spacing:.05em; text-transform:uppercase; font-weight:700;
+  color:var(--ink-soft); text-decoration:none; padding:.32rem .62rem .28rem; border-bottom:2px solid transparent; }
+nav.trail a:hover { color:var(--heading); border-bottom-color:var(--line); }
+nav.trail a[aria-current="page"] { color:var(--heading); border-bottom-color:var(--accent); }
+
+/* ---- paper & cards ---- */
+.card { position:relative; background:var(--surface); border:2px solid var(--edge);
+  padding:1.1rem 1.2rem; border-radius:10px 3px 12px 4px; }
+.card > :last-child { margin-bottom:0; }
+.card-quiet { background:var(--surface-2); border-color:var(--line); border-width:1.5px; }
+/* Warm glow — the light the bulbs throw in the full lockup. One card per page. */
+.card-lit { background:radial-gradient(130px 95px at 88% 8%, var(--glow) 0%, transparent 72%), var(--surface); }
+:root[data-theme="dark"] .card-lit, :root:not([data-theme="light"]) .card-lit {
+  background:radial-gradient(130px 95px at 88% 8%, rgba(255,248,231,.14) 0%, transparent 72%), var(--surface); }
+.stitched::after { content:""; position:absolute; inset:5px; border:1px dashed var(--line);
+  border-radius:7px 2px 9px 3px; pointer-events:none; }
+a.card { display:block; text-decoration:none; color:inherit; transition:transform .12s ease, border-color .12s ease; }
+a.card:hover { transform:translate(-1px,-2px); border-color:var(--accent); }
+a.card:hover h3 { text-decoration:underline; }
+
+.ruled { font-family:var(--serif); line-height:1.85; white-space:pre-wrap;
+  background-image:linear-gradient(transparent calc(1.85em - 1px), var(--line-soft) 0); background-size:100% 1.85em; }
+.note { border-left:3px solid var(--sage); padding:.1rem 0 .1rem .85rem; color:var(--ink-soft); font-family:var(--serif); }
+
+/* ---- badges & tallies ---- */
+.tag { display:inline-block; font-size:.68rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  padding:.16rem .48rem; border:1px solid var(--line); border-radius:2px; color:var(--ink-soft); white-space:nowrap; text-decoration:none; }
+.tag-moss { border-color:var(--accent); color:var(--heading); }
+.tag-dusk { border-color:var(--link); color:var(--link); }
+.tag-warn { border-color:var(--warn); color:var(--warn); }
+.stamp { display:inline-block; transform:rotate(-4deg); border:2px solid var(--dust); border-radius:3px;
+  padding:.16rem .5rem; font-family:var(--serif); font-size:.76rem; font-weight:700; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--dust); opacity:.85; }
+.stamp-moss { border-color:var(--accent); color:var(--heading); }
+
+.tally { display:flex; flex-wrap:wrap; border:2px solid var(--edge); border-radius:8px 3px 8px 3px; overflow:hidden; background:var(--surface); }
+.tally > div { flex:1 1 110px; padding:.75rem .85rem .65rem; border-right:1px solid var(--line-soft); }
+.tally > div:last-child { border-right:0; }
+.tally b { display:block; font-family:var(--serif); font-size:1.7rem; font-weight:700; line-height:1; color:var(--heading); font-variant-numeric:tabular-nums; }
+.tally small { display:block; margin-top:.25rem; font-size:.67rem; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-faint); font-weight:700; }
+
+/* ---- buttons ---- */
+.btn { display:inline-flex; align-items:center; gap:.4rem; font-family:var(--sans); font-size:.85rem;
+  font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding:.45rem .9rem;
+  border:2px solid var(--edge); border-radius:7px 3px 8px 3px; background:var(--surface); color:var(--ink);
+  text-decoration:none; cursor:pointer; transition:transform .1s ease, background .12s ease; }
+.btn:hover { transform:translateY(-1px); background:var(--surface-2); }
+.btn-primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+.btn-primary:hover { filter:brightness(.92); background:var(--accent); }
+.btn-small { font-size:.74rem; padding:.28rem .58rem; border-width:1.5px; }
+.btn-plain { border:0; background:none; padding:.18rem .28rem; color:var(--ink-faint); font-family:var(--sans);
+  font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; font-weight:700; cursor:pointer; }
+.btn-plain:hover { color:var(--dust); text-decoration:underline; }
+
+/* ---- forms ---- */
+label,.label { display:block; font-size:.7rem; font-weight:700; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--ink-faint); margin-bottom:.28rem; }
+input[type="text"],input[type="date"],input[type="number"],input[type="search"],select,textarea {
+  width:100%; font-family:var(--sans); font-size:1rem; color:var(--ink); background:var(--ground);
+  border:0; border-bottom:1.5px solid var(--line); border-radius:2px 2px 0 0; padding:.42rem .5rem; }
+textarea { font-family:var(--serif); line-height:1.7; resize:vertical; min-height:4.5rem; }
+input:focus-visible,select:focus-visible,textarea:focus-visible { border-bottom-color:var(--accent); }
+input[type="checkbox"] { accent-color:var(--accent); width:1.05rem; height:1.05rem; cursor:pointer; }
+.field { margin-bottom:.9rem; }
+.field-row { display:grid; gap:.9rem; grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr)); margin-bottom:.9rem; }
+fieldset { border:0; padding:0; margin:0 0 .9rem; }
+legend { padding:0; }
+.check { display:flex; align-items:center; gap:.5rem; font-size:.92rem; font-weight:400; letter-spacing:0;
+  text-transform:none; color:var(--ink); margin:0; cursor:pointer; }
+
+.rating-input { display:flex; gap:.28rem; align-items:center; flex-wrap:wrap; }
+.rating-input input { position:absolute; opacity:0; pointer-events:none; }
+.rating-input label { margin:0; padding:.2rem .46rem; border:1.5px solid var(--line); border-radius:5px 2px 5px 2px;
+  font-family:var(--serif); font-size:.9rem; letter-spacing:0; text-transform:none; color:var(--ink-soft); cursor:pointer; }
+.rating-input label:hover { border-color:var(--dust); color:var(--dust); }
+.rating-input input:checked + label { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+.rating-input input:focus-visible + label { outline:2px solid var(--sage); outline-offset:1px; }
+
+/* ---- lists ---- */
+.entries { list-style:none; margin:0; padding:0; }
+.entries > li { padding:.8rem 0; border-bottom:1px dashed var(--line-soft); }
+.entries > li:first-child { padding-top:0; }
+.entries > li:last-child { border-bottom:0; padding-bottom:0; }
+.checklist { list-style:none; margin:0; padding:0; }
+.checklist > li { display:flex; align-items:baseline; gap:.5rem; padding:.28rem 0; border-bottom:1px dotted var(--line-soft); }
+.checklist > li:last-child { border-bottom:0; }
+.done { color:var(--ink-faint); text-decoration:line-through; }
+.tickbox { flex:0 0 auto; width:1.05rem; height:1.05rem; padding:0; line-height:1; font-size:.76rem;
+  border:1.5px solid var(--line); border-radius:3px; background:transparent; color:var(--accent-ink); cursor:pointer; }
+.tickbox[data-on="1"] { background:var(--accent); border-color:var(--accent); }
+.empty { border:1.5px dashed var(--line); border-radius:10px 3px 10px 3px; padding:1.5rem 1.3rem;
+  text-align:center; color:var(--ink-soft); }
+.empty p { margin:0 auto .75rem; max-width:44ch; }
+.empty p:last-child { margin-bottom:0; }
+.rating { display:inline-flex; gap:.08rem; align-items:center; color:var(--dust); }
+.rating svg { width:15px; height:15px; }
+.rating .off { opacity:.25; }
+
+details.drawer > summary { cursor:pointer; font-size:.76rem; font-weight:700; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--link); list-style:none; padding:.3rem 0; }
+details.drawer > summary::-webkit-details-marker { display:none; }
+details.drawer > summary::before { content:"＋ "; }
+details.drawer[open] > summary::before { content:"− "; }
+details.drawer > summary:hover { color:var(--heading); }
+/* A whole row as its own edit trigger — a repeated "Edit" link under every
+   item would drown out a long inventory. */
+details.drawer > summary.row-summary { display:flex; align-items:baseline; justify-content:space-between;
+  gap:.7rem; flex-wrap:wrap; padding:.08rem 0; font-size:1rem; font-weight:400; letter-spacing:0;
+  text-transform:none; color:var(--ink); }
+details.drawer > summary.row-summary::before { content:none; }
+details.drawer > summary.row-summary:hover .row-name { text-decoration:underline; }
+details.drawer[open] > summary.row-summary .row-name { color:var(--heading); }
+
+.crumb { font-size:.76rem; letter-spacing:.1em; text-transform:uppercase; font-weight:700;
+  color:var(--ink-faint); text-decoration:none; display:inline-block; margin-bottom:.5rem; }
+.crumb:hover { color:var(--dust); }
+
+/* ---- weather & map ---- */
+.forecast { display:grid; gap:.55rem; grid-template-columns:repeat(auto-fill,minmax(min(100%,148px),1fr)); }
+.forecast-day { border:1px solid var(--line); border-radius:7px 2px 7px 2px; padding:.55rem .65rem; background:var(--surface-2); }
+.forecast-day .when { font-size:.67rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--link); }
+.forecast-day .temp { font-family:var(--serif); font-size:1.45rem; font-weight:700; color:var(--ink); line-height:1.1; font-variant-numeric:tabular-nums; }
+.forecast-day .sky { font-size:.83rem; color:var(--ink-soft); line-height:1.35; }
+.alert { border:2px solid var(--warn); border-left-width:6px; border-radius:3px; background:var(--surface-2); padding:.65rem .85rem; }
+.map-frame { border:2px solid var(--edge); border-radius:8px 3px 8px 3px; overflow:hidden; line-height:0; background:var(--surface); }
+.map-frame iframe { width:100%; height:225px; border:0; filter:var(--map-filter); }
+
+/* ---- footer band ---- */
+.band { margin-top:4rem; background:var(--moss); border-top:2px solid var(--edge); }
+:root[data-theme="dark"] .band, :root:not([data-theme="light"]) .band { background:#2A3327; }
+.band-inner { max-width:1060px; margin:0 auto; padding:1.4rem clamp(1rem,4vw,2.25rem) 1.8rem;
+  display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem; }
+.band p { margin:0; max-width:44ch; font-size:.82rem; color:rgba(244,239,228,.76); }
+.band a { color:rgba(244,239,228,.92); }
+
+/* ---- sync banner ---- */
+.banner { max-width:1060px; margin:0 auto 1.2rem; padding:.6rem clamp(1rem,4vw,2.25rem);
+  display:flex; gap:.6rem; align-items:baseline; flex-wrap:wrap; font-size:.87rem; color:var(--ink-soft); }
+.dot { width:.55rem; height:.55rem; border-radius:50%; background:var(--sage); flex:0 0 auto; align-self:center; }
+.dot[data-state="local"] { background:var(--warn); }
+.dot[data-state="error"] { background:#B4523F; }
+
+.toast { position:fixed; right:1rem; bottom:1rem; z-index:20; padding:.45rem .85rem;
+  border:1.5px solid var(--line); border-radius:6px 2px 6px 2px; background:var(--surface);
+  color:var(--ink-soft); font-size:.8rem; }
+.toast[hidden] { display:none !important; }
+
+@media (prefers-reduced-motion: reduce) { *{transition:none!important;} .btn:hover,a.card:hover{transform:none;} }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <a class="lockup" href="#/" aria-label="Campward — the logbook">
+      <svg width="38" height="42" viewBox="0 0 60 66" fill="none" aria-hidden="true">
+        <polygon points="30,3 58,63 2,63" fill="#8A9A5B" stroke="#3F4E3B" stroke-width="1.5" stroke-linejoin="round"></polygon>
+        <line x1="30" y1="3" x2="30" y2="63" stroke="#3F4E3B" stroke-width="1.5"></line>
+        <path d="M 6 11 Q 30 25 54 11" fill="none" stroke="#A87C4F" stroke-width="1.2"></path>
+        <circle cx="12" cy="15" r="3" fill="#F4EFE4" stroke="#3F4E3B" stroke-width=".8"></circle>
+        <circle cx="24" cy="22" r="3" fill="#F4EFE4" stroke="#3F4E3B" stroke-width=".8"></circle>
+        <circle cx="36" cy="22" r="3" fill="#F4EFE4" stroke="#3F4E3B" stroke-width=".8"></circle>
+        <circle cx="48" cy="15" r="3" fill="#F4EFE4" stroke="#3F4E3B" stroke-width=".8"></circle>
+      </svg>
+      <span><span class="lockup-word">Campward</span><span class="lockup-tag">Plan · Pack · Go</span></span>
+    </a>
+    <nav class="trail" id="trail"></nav>
+  </div>
+  <div class="lights" aria-hidden="true"></div>
+</header>
+
+<div class="banner" id="banner" hidden></div>
+<main class="shell" id="view"><p class="muted">Opening the logbook…</p></main>
+
+<footer class="band">
+  <div class="lights lights-dark" aria-hidden="true" style="margin-top:0"></div>
+  <div class="band-inner">
+    <span class="lockup" data-tone="dark">
+      <svg width="32" height="35" viewBox="0 0 60 66" fill="none" aria-hidden="true">
+        <polygon points="30,3 58,63 2,63" fill="none" stroke="#F4EFE4" stroke-width="2" stroke-linejoin="round"></polygon>
+        <line x1="30" y1="3" x2="30" y2="63" stroke="#F4EFE4" stroke-width="2"></line>
+        <path d="M 6 11 Q 30 25 54 11" fill="none" stroke="#F4EFE4" stroke-width="1.2"></path>
+        <circle cx="12" cy="15" r="3" fill="#F4EFE4"></circle><circle cx="24" cy="22" r="3" fill="#F4EFE4"></circle>
+        <circle cx="36" cy="22" r="3" fill="#F4EFE4"></circle><circle cx="48" cy="15" r="3" fill="#F4EFE4"></circle>
+      </svg>
+      <span><span class="lockup-word">Campward</span><span class="lockup-tag">Plan · Pack · Go</span></span>
+    </span>
+    <p id="colophon">Weather from the National Weather Service. Maps from OpenStreetMap.</p>
+  </div>
+</footer>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
