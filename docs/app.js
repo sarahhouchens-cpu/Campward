@@ -75,6 +75,33 @@ function daysUntil(start) {
   return Number.isNaN(target) ? null : Math.round((target - today) / 86400000);
 }
 
+/**
+ * Weather services only see about a week ahead, so for a trip further off than
+ * this the forecast would describe a completely different stretch of weather.
+ * Showing it anyway — and deriving packing hints from it — is worse than
+ * showing nothing.
+ */
+const FORECAST_HORIZON_DAYS = 10;
+
+/** Whether a forecast is worth showing for a trip, and why not when it isn't. */
+function forecastWindow(trip) {
+  const startsIn = daysUntil(trip.start);
+  const endsIn = daysUntil(trip.end || trip.start);
+  // Undated: no dates to be wrong about, and current conditions still tell you
+  // something about the place.
+  if (startsIn == null) return { show: true, covers: true };
+  if (endsIn != null && endsIn < 0) return { show: false, reason: "past" };
+  if (startsIn > FORECAST_HORIZON_DAYS) return { show: false, reason: "far", startsIn };
+  // Inside the window but the forecast may still stop short of the trip.
+  return { show: true, covers: startsIn <= 6 };
+}
+
+function addDays(iso, days) {
+  const t = Date.parse(iso + "T00:00:00Z");
+  if (Number.isNaN(t)) return null;
+  return new Date(t + days * 86400000).toISOString().slice(0, 10);
+}
+
 function coordLabel(lat, lon) {
   if (lat == null || lon == null || lat === "" || lon === "") return "";
   return `${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? "N" : "S"}, ` +
@@ -582,6 +609,7 @@ Views.trip = function (id) {
   const countdown = d.status === "planned" ? daysUntil(d.start) : null;
   const hasCoords = d.lat != null && d.lon != null && d.lat !== "" && d.lon !== "";
   const miles = walks.reduce((sum, h) => sum + (Number(h.data.miles) || 0), 0);
+  const weather = forecastWindow(d);
 
   const stamp = d.status === "completed" ? '<span class="stamp stamp-moss">Logged</span>'
     : countdown != null && countdown >= 0
@@ -674,9 +702,18 @@ Views.trip = function (id) {
 
         <section>
           <header class="row-tight" style="margin-bottom:.7rem">${icon("cloud")}<h2 style="margin:0">Conditions</h2></header>
-          ${hasCoords ? `<div id="weather" data-lat="${esc(d.lat)}" data-lon="${esc(d.lon)}">
-              <div class="card card-quiet row-tight">${icon("cloud")}<span class="muted">Reading the sky…</span></div></div>`
-            : `<p class="muted" style="font-size:.92rem">No coordinates, no forecast.</p>`}
+          ${!hasCoords
+            ? `<p class="muted" style="font-size:.92rem">No coordinates, no forecast.</p>`
+            : !weather.show
+              ? `<div class="card card-quiet"><p class="muted" style="margin:0;font-size:.93rem">${
+                  weather.reason === "past"
+                    ? "This trip is in the log. Whatever the weather did is in your notes."
+                    : `Too far out to forecast — ${weather.startsIn} days from now. The services
+                       only see about a week ahead, so check back around
+                       ${esc(fmtDate(addDays(d.start, -7)))}.`}</p></div>`
+              : `<div id="weather" data-lat="${esc(d.lat)}" data-lon="${esc(d.lon)}"
+                   data-covers="${weather.covers ? "1" : "0"}">
+                  <div class="card card-quiet row-tight">${icon("cloud")}<span class="muted">Reading the sky…</span></div></div>`}
         </section>
 
         <section>
@@ -1051,6 +1088,9 @@ function packingHints(f) {
     hints.push("Some chance of rain (" + wettest + "%) — bring the shells even if it looks clear at the trailhead.");
   if (text.includes("thunder")) hints.push("Thunderstorms possible — plan to be off exposed ridges by early afternoon.");
   if (text.includes("snow")) hints.push("Snow in the forecast — traction devices and waterproof boots.");
+  const gust = Math.max(0, ...f.periods.flatMap((p) =>
+    (String(p.wind || "").match(/\d+/g) || []).map(Number)));
+  if (gust >= 20) hints.push("Wind up to " + gust + " mph — extra stakes and guylines, and pick a sheltered site.");
   if (f.alerts.length) hints.push(f.alerts.length + " active weather alert(s) for this area — read them before you commit.");
   if (!hints.length) hints.push("Nothing alarming in the forecast. Standard kit should do it.");
   return hints;
@@ -1088,6 +1128,8 @@ async function loadWeather() {
           ${p.precip ? `<div class="faint nums" style="font-size:.78rem;margin-top:.2rem">${esc(p.precip)}% precip</div>` : ""}
           ${p.wind ? `<div class="faint" style="font-size:.78rem">Wind ${esc(p.wind)}</div>` : ""}
         </div>`).join("")}</div>`}
+    ${box.dataset.covers === "0" ? `<p class="faint" style="margin:0;font-size:.82rem">
+      Heads up: this is the week ahead at that spot — it doesn&rsquo;t reach your dates yet.</p>` : ""}
     <div class="card card-quiet">
       <p class="eyebrow" style="margin-bottom:.5rem">What this means for the packing list</p>
       <ul class="checklist">${packingHints(f).map((h) =>

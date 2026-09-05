@@ -224,8 +224,14 @@ export function packingHints(forecast: ForecastResult): string[] {
     hints.push("Thunderstorms possible — plan to be off exposed ridges by early afternoon.");
   }
   if (text.includes("snow")) hints.push("Snow in the forecast — traction devices and waterproof boots.");
-  if (text.includes("wind") && text.match(/\b([2-9]\d|1\d\d) mph/)) {
-    hints.push("Windy — extra stakes and guylines, and pick a sheltered site.");
+
+  // Wind lives in each period's own field, never in the prose.
+  const gust = Math.max(
+    0,
+    ...periods.flatMap((p) => (p.wind.match(/\d+/g) ?? []).map(Number)),
+  );
+  if (gust >= 20) {
+    hints.push(`Wind up to ${gust} mph — extra stakes and guylines, and pick a sheltered site.`);
   }
   if (forecast.alerts.length > 0) {
     hints.push(`${forecast.alerts.length} active weather alert(s) for this area — read them before you commit.`);

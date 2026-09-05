@@ -9,7 +9,14 @@ import { MealPlanner } from "@/components/meal-planner";
 import { PackList } from "@/components/pack-list";
 import { WeatherPanel, WeatherPanelSkeleton } from "@/components/weather-panel";
 import { deleteCampsite, deleteHike } from "@/lib/actions";
-import { coordLabel, daysUntil, formatDate, formatRange, nightsBetween } from "@/lib/format";
+import {
+  coordLabel,
+  daysUntil,
+  forecastWindow,
+  formatDate,
+  formatRange,
+  nightsBetween,
+} from "@/lib/format";
 import { campsitesForTrip, getTrip, hikesForTrip } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +39,7 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
   const countdown = trip.status === "planned" ? daysUntil(trip.start_date) : null;
   const hasCoords = trip.latitude != null && trip.longitude != null;
   const miles = hikes.reduce((sum, h) => sum + (h.distance_miles ?? 0), 0);
+  const weather = forecastWindow(trip.start_date, trip.end_date);
 
   return (
     <>
@@ -257,14 +265,26 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
               <CloudIcon size={20} />
               <h2 style={{ margin: 0 }}>Conditions</h2>
             </header>
-            {hasCoords ? (
-              <Suspense fallback={<WeatherPanelSkeleton />}>
-                <WeatherPanel latitude={trip.latitude!} longitude={trip.longitude!} />
-              </Suspense>
-            ) : (
+            {!hasCoords ? (
               <p className="muted" style={{ fontSize: ".92rem" }}>
                 No coordinates, no forecast.
               </p>
+            ) : !weather.show ? (
+              <div className="card card-quiet">
+                <p className="muted" style={{ margin: 0, fontSize: ".93rem" }}>
+                  {weather.reason === "past"
+                    ? "This trip is in the log. Whatever the weather did is in your notes."
+                    : `Too far out to forecast — ${weather.startsIn} days from now. The services only see about a week ahead, so check back around ${formatDate(weather.checkBack)}.`}
+                </p>
+              </div>
+            ) : (
+              <Suspense fallback={<WeatherPanelSkeleton />}>
+                <WeatherPanel
+                  latitude={trip.latitude!}
+                  longitude={trip.longitude!}
+                  covers={weather.covers}
+                />
+              </Suspense>
             )}
           </section>
 

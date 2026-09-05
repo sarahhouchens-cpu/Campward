@@ -9,9 +9,12 @@ import { getForecast, packingHints } from "@/lib/weather";
 export async function WeatherPanel({
   latitude,
   longitude,
+  covers = true,
 }: {
   latitude: number;
   longitude: number;
+  /** False when the forecast stops short of the trip's dates. */
+  covers?: boolean;
 }) {
   let forecast;
   try {
@@ -68,6 +71,13 @@ export async function WeatherPanel({
             </div>
           ))}
         </div>
+      )}
+
+      {!covers && (
+        <p className="faint" style={{ margin: 0, fontSize: ".82rem" }}>
+          Heads up: this is the week ahead at that spot — it doesn&rsquo;t reach your
+          dates yet.
+        </p>
       )}
 
       <div className="card card-quiet">
