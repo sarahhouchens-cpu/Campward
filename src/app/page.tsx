@@ -39,7 +39,7 @@ export default function LogbookPage() {
 
         <div className="stack">
           {next ? (
-            <article className="card stitched">
+            <article className="card card-lit stitched">
               <p className="eyebrow" style={{ marginBottom: ".25rem" }}>
                 Next out
               </p>
@@ -78,7 +78,7 @@ export default function LogbookPage() {
           <div className="tally">
             <div>
               <b>{summary.trips}</b>
-              <small>Trips logged</small>
+              <small>Trips</small>
             </div>
             <div>
               <b>{Math.round(summary.nights)}</b>
@@ -215,13 +215,6 @@ export default function LogbookPage() {
           </div>
         </div>
       </section>
-
-      <footer className="colophon">
-        <p style={{ margin: 0 }}>
-          Campward keeps everything in one SQLite file on this machine. Nothing leaves
-          it except weather and geocoding lookups.
-        </p>
-      </footer>
     </>
   );
 }

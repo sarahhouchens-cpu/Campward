@@ -103,7 +103,8 @@ src/
     actions.ts            every write (server actions)
     weather.ts            NWS with an Open-Meteo fallback, and packing hints
     format.ts  types.ts
-  components/             forms, icons, packing list, meal planner, weather panel
+  components/             forms, icons, logo, packing list, meal planner, weather
+public/logo/              the supplied brand artwork
 scripts/seed.mjs          starter gear closet
 ```
 
@@ -115,16 +116,45 @@ the database. The only client components are the address lookup and the nav.
 
 Warm and analog on purpose — a field journal, not a dashboard. Paper grain
 instead of gradients, uneven cut corners and stitched edges instead of drop
-shadows, hand-cut SVG icons instead of a generic outline set, and a deliberately
-asymmetric two-column layout.
+shadows, and a deliberately asymmetric two-column layout.
 
 - **Forest Moss** `#3F4E3B` · **Sage** `#8A9A5B` · **Weathered Canvas** `#E4D8BE`
-- **Trail Dust** `#A87C4F` · **Dusk Lake** `#4C6B73` · **Bone** `#F4EFE4` · **Campfire Char** `#2B2620`
+- **Trail Dust** `#A87C4F` · **Dusk Lake** `#4C6B73` · **Bone** `#F4EFE4` ·
+  **Campfire Char** `#2B2620` · **Warm Glow** `#FFF8E7`
 - Fraunces for headings, Karla for body, Caveat for the handwritten asides
   (used sparingly — marginalia only, never anything you need to read fast)
 
-All of it lives in `src/app/globals.css` as custom properties; change the seven
+All of it lives in `src/app/globals.css` as custom properties; change the
 colours at the top and the whole app follows.
+
+### Brand assets
+
+The supplied logo artwork is in `public/logo/` (see `public/logo/README.md` for
+the original brief), unchanged apart from the one swap that brief asks for:
+Georgia was a stand-in, so the wordmarks now specify Fraunces. How each is used:
+
+| Asset | Used for |
+|---|---|
+| `campward-icon-only.svg` | The favicon, copied to `src/app/icon.svg` |
+| `campward-logo-compact.svg` | Redrawn as `<CampwardMark>` for the masthead |
+| `campward-logo-on-dark.svg` | The `onDark` tone, in the footer band |
+| `campward-logo-full.svg` | Reference for the hero lockup and tagline |
+
+The mark and wordmark are a component (`src/components/logo.tsx`) rather than an
+embedded image, so the lockup scales, switches to the on-dark treatment, and
+sets "Campward" as live text in the production serif.
+
+The rest of the interface follows the mark's cues:
+
+- **Icons match the logo's line quality** — even weights, flat geometric shapes,
+  sage fills against moss line work. An irregular sketchy set read as a
+  different brand sitting next to it.
+- **The string lights** from the mark are the one piece of ornament, as the
+  rule under the masthead and above the footer band.
+- **Warm Glow** `#FFF8E7`, the light behind the bulbs in the full lockup, backs
+  the one card that leads the logbook page (`.card-lit`).
+- **Headings are set at the wordmark's weight** (700) so page titles and the
+  logo read as the same voice.
 
 ## Ideas for later
 
