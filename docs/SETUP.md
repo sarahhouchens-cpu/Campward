@@ -41,7 +41,11 @@ screen without a reload.
 Open **Project Settings → API**. You need:
 
 - **Project URL** — looks like `https://abcdefgh.supabase.co`
-- **anon public** key — a long string starting `eyJ...`
+- A **publishable** key — either the current `sb_publishable_...` format or
+  the older `eyJ...` anon key. Both work.
+
+Never put a `sb_secret_...` key in here. That one bypasses your table policy,
+and this file is public.
 
 ## 4. Paste them in
 
@@ -50,7 +54,7 @@ Edit `docs/config.js` in this repository and fill in the two values:
 ```js
 window.CAMPWARD_CONFIG = {
   supabaseUrl: "https://abcdefgh.supabase.co",
-  supabaseAnonKey: "eyJhbGciOi...",
+  supabaseAnonKey: "sb_publishable_...",
   contact: "you@example.com",
 };
 ```
@@ -58,9 +62,10 @@ window.CAMPWARD_CONFIG = {
 Commit that change. Within a minute GitHub Pages rebuilds and the orange
 "saving to this browser only" notice at the top disappears.
 
-Anything already saved in your browser stays there — it doesn't move across
-automatically. If you'd already logged a few trips, re-enter them once and
-from then on everything lives in the shared logbook.
+Whatever you had already logged is still sitting in the browser you logged it
+in. The first time you open the shared logbook there, a notice offers to copy
+those entries across — take it once, on the browser that has the most in it,
+and leave it on the others so nothing arrives twice.
 
 ## Who can see it
 

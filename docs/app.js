@@ -188,11 +188,15 @@ const Store = {
 
   get(id) { return this.records.get(id) || null; },
 
+  /** Records this browser saved before the logbook became shared. */
+  strays: [],
+
   async init() {
     if (CFG.supabaseUrl && CFG.supabaseAnonKey) {
       try {
         await this.connect();
         this.mode = "shared";
+        this.findStrays();
       } catch (err) {
         this.mode = "local";
         this.error = err && err.message ? err.message : "could not reach Supabase";
@@ -204,8 +208,40 @@ const Store = {
     this.ready = true;
   },
 
+  /**
+   * Anything written to this browser before the switch is still sitting in
+   * localStorage. Rather than silently stranding it, offer to copy it up —
+   * matching on id, so a second run is harmless.
+   */
+  findStrays() {
+    if (localStorage.getItem("campward.migrated") === "done") return;
+    try {
+      const rows = JSON.parse(localStorage.getItem("campward.v1") || "[]");
+      this.strays = rows.filter((r) => r && r.id && !this.records.has(r.id));
+    } catch {
+      this.strays = [];
+    }
+  },
+
+  async liftStrays() {
+    if (!this.strays.length) return;
+    await this.putMany(this.strays);
+    localStorage.setItem("campward.migrated", "done");
+    const count = this.strays.length;
+    this.strays = [];
+    renderBanner();
+    render();
+    toast(count + " entries moved into the shared logbook");
+  },
+
+  dismissStrays() {
+    localStorage.setItem("campward.migrated", "done");
+    this.strays = [];
+    renderBanner();
+  },
+
   async connect() {
-    await loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js");
+    await loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js");
     if (!window.supabase || !window.supabase.createClient) throw new Error("Supabase library did not load");
     this.client = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey);
 
@@ -1319,6 +1355,9 @@ const Actions = {
   },
 
   geocode(el) { geocode(el); },
+
+  liftStrays() { Store.liftStrays(); },
+  dismissStrays() { Store.dismissStrays(); },
 };
 
 document.addEventListener("click", (event) => {
@@ -1393,7 +1432,16 @@ function render() {
 
 function renderBanner() {
   const banner = $("#banner");
-  if (Store.mode === "shared") { banner.hidden = true; return; }
+  if (Store.mode === "shared") {
+    if (!Store.strays.length) { banner.hidden = true; return; }
+    banner.hidden = false;
+    banner.innerHTML = `<span class="dot"></span>
+      <span>${Store.strays.length} ${Store.strays.length === 1 ? "entry" : "entries"}
+        saved in this browser before the logbook was shared.
+        <button class="btn-plain" data-act="liftStrays">Copy into the shared logbook</button>
+        <button class="btn-plain" data-act="dismissStrays">Leave them</button></span>`;
+    return;
+  }
   banner.hidden = false;
   banner.innerHTML = `<span class="dot" data-state="local"></span>
     <span>${Store.error
