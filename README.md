@@ -169,5 +169,5 @@ The rest of the interface follows the mark's cues:
 
 - Photos attached to trips and campsites
 - Export a trip as a printable page
-- Reusable meal templates across trips
 - Track which gear actually got used, to stop packing what you never touch
+- Scale a saved meal's quantities to the number of people coming

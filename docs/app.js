@@ -12,7 +12,7 @@ const CFG = Object.assign(
   window.CAMPWARD_CONFIG || {}
 );
 
-const KINDS = ["trip", "campsite", "hike", "gear", "packing", "meal", "mealitem"];
+const KINDS = ["trip", "campsite", "hike", "gear", "packing", "meal", "mealitem", "recipe"];
 
 const GEAR_CATEGORIES = ["Shelter", "Sleep", "Kitchen", "Water", "Clothing",
   "Navigation", "Light", "Safety", "Camp Comfort", "Other"];
@@ -350,6 +350,14 @@ const gear = () => Store.all("gear").sort((a, b) =>
   (a.data.name || "").localeCompare(b.data.name || "", undefined, { sensitivity: "base" }));
 
 const forTrip = (kind, tripId) => Store.all(kind).filter((r) => r.data.tripId === tripId);
+
+/** The cookbook: meals kept for reuse, newest-named first. */
+const recipes = () => Store.all("recipe").sort((a, b) =>
+  (a.data.name || "").localeCompare(b.data.name || "", undefined, { sensitivity: "base" }));
+
+/** A saved meal is identified by its name, so saving twice updates in place. */
+const recipeNamed = (name) => recipes().find((r) =>
+  (r.data.name || "").toLowerCase() === String(name || "").toLowerCase()) || null;
 
 const tripTitle = (id) => {
   const t = Store.get(id);
@@ -839,7 +847,12 @@ function mealPlanner(tripId, startDate) {
             <div><span class="tag tag-moss">${esc(label[m.data.slot] || m.data.slot)}</span>
               <strong style="margin-left:.3rem">${esc(m.data.name)}</strong>
               ${m.data.day ? `<div class="faint" style="font-size:.82rem">${esc(fmtDate(m.data.day))}</div>` : ""}</div>
-            <button class="btn-plain" data-act="deleteRec" data-id="${esc(m.id)}" aria-label="Remove ${esc(m.data.name)}">×</button>
+            <span class="row-tight">
+              <button class="btn-plain" data-act="saveRecipe" data-id="${esc(m.id)}" data-trip="${esc(tripId)}"
+                title="Keep this meal and its ingredients for another trip">${
+                  recipeNamed(m.data.name) ? "Update saved" : "Save to cookbook"}</button>
+              <button class="btn-plain" data-act="deleteRec" data-id="${esc(m.id)}" aria-label="Remove ${esc(m.data.name)}">×</button>
+            </span>
           </div>
           ${m.data.notes ? `<p class="muted" style="margin:.4rem 0 0;font-size:.9rem">${esc(m.data.notes)}</p>` : ""}
           ${mine.length ? `<ul class="checklist" style="margin-top:.5rem">${mine.map((i) => `<li>
@@ -872,7 +885,24 @@ function mealPlanner(tripId, startDate) {
         </li>`;
       }).join("")}</ul></div>` : "";
 
+  const book = recipes();
+  const cookbook = book.length ? `<details class="drawer">
+    <summary>Add from the cookbook (${book.length})</summary>
+    <ul class="checklist" style="margin-top:.4rem">${book.map((r) => {
+      const count = (r.data.items || []).length;
+      return `<li>
+        <button class="btn-plain" data-act="useRecipe" data-id="${esc(r.id)}" data-trip="${esc(tripId)}"
+          aria-label="Add ${esc(r.data.name)} to this trip">＋</button>
+        <span class="grow">${esc(r.data.name)}
+          <span class="faint">— ${count} ${count === 1 ? "ingredient" : "ingredients"}</span></span>
+        <span class="tag tag-moss">${esc(label[r.data.slot] || r.data.slot || "Meal")}</span>
+        <button class="btn-plain" data-act="deleteRec" data-id="${esc(r.id)}"
+          aria-label="Remove ${esc(r.data.name)} from the cookbook">×</button>
+      </li>`;
+    }).join("")}</ul></details>` : "";
+
   return `<div class="stack">${list}
+    ${cookbook}
     <details class="drawer"><summary>Plan a meal</summary>
       <form data-act="addMeal" data-trip="${esc(tripId)}" style="margin-top:.5rem">
         <div class="field-row">
@@ -1340,6 +1370,62 @@ const Actions = {
       created: new Date().toISOString(),
     });
     form.reset();
+  },
+
+  /** Keep a planned meal, with its ingredients, for reuse on another trip. */
+  async saveRecipe(el) {
+    const meal = Store.get(el.dataset.id);
+    if (!meal) return;
+    const items = forTrip("mealitem", el.dataset.trip)
+      .filter((i) => i.data.mealId === meal.id)
+      .map((i) => ({ item: i.data.item, quantity: i.data.quantity || "" }));
+
+    // Saving the same meal name again updates it rather than piling up copies.
+    const existing = recipeNamed(meal.data.name);
+    await Store.put("recipe", existing ? existing.id : null, {
+      name: meal.data.name,
+      slot: meal.data.slot || "dinner",
+      notes: meal.data.notes || "",
+      items,
+      savedAt: new Date().toISOString(),
+    });
+    toast(existing
+      ? `Updated “${meal.data.name}” in the cookbook`
+      : items.length
+        ? `Saved “${meal.data.name}” and ${items.length} ${items.length === 1 ? "ingredient" : "ingredients"}`
+        : `Saved “${meal.data.name}” — add ingredients and save again to keep them`);
+  },
+
+  /** Drop a saved meal onto this trip; its ingredients land on the shopping list. */
+  async useRecipe(el) {
+    const recipe = Store.get(el.dataset.id);
+    if (!recipe) return;
+    const tripId = el.dataset.trip;
+    const trip = Store.get(tripId);
+
+    const mealId = await Store.put("meal", null, {
+      tripId,
+      day: trip && trip.data ? trip.data.start || null : null,
+      slot: recipe.data.slot || "dinner",
+      name: recipe.data.name,
+      notes: recipe.data.notes || "",
+      created: new Date().toISOString(),
+    });
+
+    const items = (recipe.data.items || []).filter((i) => i && i.item);
+    if (items.length) {
+      await Store.putMany(items.map((i) => ({
+        id: uid(),
+        kind: "mealitem",
+        data: {
+          mealId, tripId, item: i.item, quantity: i.quantity || "",
+          bought: false, created: new Date().toISOString(),
+        },
+      })));
+    }
+    toast(items.length
+      ? `Added “${recipe.data.name}” and ${items.length} ${items.length === 1 ? "ingredient" : "ingredients"}`
+      : `Added “${recipe.data.name}”`);
   },
 
   async toggleItem(el) {
