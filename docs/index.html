@@ -250,6 +250,27 @@ details.drawer[open] > summary.row-summary .row-name { color:var(--heading); }
 .dot[data-state="local"] { background:var(--warn); }
 .dot[data-state="error"] { background:#B4523F; }
 
+/* ---- barcode scanner ---- */
+dialog.scanner {
+  width:min(94vw,520px); padding:0; border:2px solid var(--edge);
+  border-radius:10px 3px 12px 4px; background:var(--surface); color:var(--ink);
+}
+dialog.scanner::backdrop { background:rgba(43,38,32,.72); }
+.scanner-body { padding:1rem 1.1rem 1.1rem; }
+.scanner-stage {
+  position:relative; background:var(--char); border:1.5px solid var(--line);
+  border-radius:7px 2px 7px 2px; overflow:hidden; aspect-ratio:4/3;
+  display:grid; place-items:center;
+}
+.scanner-stage video { width:100%; height:100%; object-fit:cover; display:block; }
+/* A reticle so it's obvious where to hold the label. */
+.scanner-stage::after {
+  content:""; position:absolute; left:8%; right:8%; top:34%; bottom:34%;
+  border:2px solid var(--glow); border-radius:4px; opacity:.72; pointer-events:none;
+}
+.scanner-stage[data-idle="1"]::after { display:none; }
+.scanner-msg { color:var(--bone); font-size:.9rem; padding:1.4rem; text-align:center; max-width:34ch; }
+
 .toast { position:fixed; right:1rem; bottom:1rem; z-index:20; padding:.45rem .85rem;
   border:1.5px solid var(--line); border-radius:6px 2px 6px 2px; background:var(--surface);
   color:var(--ink-soft); font-size:.8rem; }
@@ -298,6 +319,22 @@ details.drawer[open] > summary.row-summary .row-name { color:var(--heading); }
     <p id="colophon">Weather from the National Weather Service. Maps from OpenStreetMap.</p>
   </div>
 </footer>
+
+<dialog class="scanner" id="scanner" aria-labelledby="scanner-title">
+  <div class="scanner-body">
+    <div class="spread" style="margin-bottom:.7rem">
+      <h3 id="scanner-title" style="margin:0">Scan a barcode</h3>
+      <button class="btn-plain" data-act="closeScanner" autofocus>Close</button>
+    </div>
+    <div class="scanner-stage" id="scanner-stage" data-idle="1">
+      <p class="scanner-msg" id="scanner-msg">Starting the camera…</p>
+      <video id="scanner-video" playsinline muted hidden></video>
+    </div>
+    <p class="faint" id="scanner-hint" style="margin:.7rem 0 0;font-size:.83rem">
+      Hold the tag or box label inside the frame.
+    </p>
+  </div>
+</dialog>
 
 <div class="toast" id="toast" hidden></div>
 

@@ -148,6 +148,10 @@ function icon(name, size) {
          `<path d="M9 7.2c.7-.9.6-1.7 0-2.6M12.4 7.2c.7-.9.6-1.7 0-2.6M15.8 7.2c.7-.9.6-1.7 0-2.6"/>`,
     compass: `<circle cx="12" cy="12" r="9.2" fill="${SAGE}"/>` +
              `<polygon points="15.8,8.2 13.6,13.8 8.2,15.8 10.4,10.2" fill="${BONE}"/>`,
+    barcode: `<rect x="2.5" y="5" width="19" height="14" rx="1.5" fill="${SAGE}"/>` +
+             `<g stroke-width="1.4"><line x1="6" y1="8.5" x2="6" y2="15.5"/>` +
+             `<line x1="9" y1="8.5" x2="9" y2="15.5"/><line x1="12" y1="8.5" x2="12" y2="15.5"/>` +
+             `<line x1="15.5" y1="8.5" x2="15.5" y2="15.5"/><line x1="18" y1="8.5" x2="18" y2="15.5"/></g>`,
     lights: `<path d="M3 6.5Q12 14 21 6.5" stroke="${DUST}"/>` +
             `<circle cx="7.5" cy="10.4" r="2.6" fill="${BONE}"/>` +
             `<circle cx="16.5" cy="10.4" r="2.6" fill="${BONE}"/>` +
@@ -352,6 +356,11 @@ const gear = () => Store.all("gear").sort((a, b) =>
 const forTrip = (kind, tripId) => Store.all(kind).filter((r) => r.data.tripId === tripId);
 
 /** The cookbook: meals kept for reuse, newest-named first. */
+const gearByBarcode = (code) => {
+  const key = normBarcode(code);
+  return key ? Store.all("gear").find((g) => normBarcode(g.data.barcode) === key) || null : null;
+};
+
 const recipes = () => Store.all("recipe").sort((a, b) =>
   (a.data.name || "").localeCompare(b.data.name || "", undefined, { sensitivity: "base" }));
 
@@ -631,6 +640,14 @@ function gearForm(rec) {
         ${GEAR_CONDITIONS.map(([v, l]) => `<option value="${v}"${(d.condition || "good") === v ? " selected" : ""}>${l}</option>`).join("")}</select></div>
       <div><label>Quantity</label><input name="quantity" type="number" min="1" step="1" value="${esc(d.quantity ?? 1)}"></div>
       <div><label>Weight (oz)</label><input name="weightOz" type="number" min="0" step="0.1" value="${esc(d.weightOz ?? "")}" placeholder="51"></div>
+    </div>
+    <div class="field">
+      <label for="gear-code-${esc(String(rec ? rec.id : "new"))}">Barcode</label>
+      <div class="row" style="gap:.5rem;flex-wrap:nowrap">
+        <input class="grow nums" id="gear-code-${esc(String(rec ? rec.id : "new"))}" name="barcode" type="text"
+               value="${esc(d.barcode || "")}" placeholder="Scan it, or type it in">
+        <button class="btn btn-small" type="button" data-act="scanInto">Scan</button>
+      </div>
     </div>
     <div class="field"><label>Notes</label>
       <textarea name="notes" style="min-height:3.6rem" placeholder="Where it lives, what needs fixing, what it replaced.">${esc(d.notes || "")}</textarea></div>
@@ -1024,7 +1041,10 @@ Views.gear = function () {
     </header>
     ${repair.length ? `<div class="alert" style="margin-bottom:1.3rem"><p style="margin:0">
       <strong>Needs attention before the next trip:</strong> ${esc(repair.map((g) => g.data.name).join(", "))}.</p></div>` : ""}
-    <details class="drawer card card-quiet" style="margin-bottom:1.5rem"><summary>Add gear</summary>${gearForm(null)}</details>
+    <div class="row" style="margin-bottom:1rem">
+      <button class="btn" data-act="scanGear">${icon("barcode", 17)} Scan a barcode</button>
+    </div>
+    <details class="drawer card card-quiet" style="margin-bottom:1.5rem" id="add-gear"><summary>Add gear</summary>${gearForm(null)}</details>
     ${active.length === 0 ? emptyBlock("Nothing in the closet yet. Add the big things first — tent, bags, pads, stove.")
       : Object.keys(byCategory).sort().map((cat) => `
         <section class="section" style="margin-top:1.7rem">
@@ -1035,7 +1055,7 @@ Views.gear = function () {
               <span><strong class="row-name">${esc(g.data.name)}</strong>${
                 g.data.quantity > 1 ? ` <span class="faint">×${esc(g.data.quantity)}</span>` : ""}${
                 g.data.notes ? `<span class="muted" style="display:block;font-size:.89rem">${esc(g.data.notes)}</span>` : ""}</span>
-              <span class="row-tight">${g.data.weightOz ? `<span class="faint nums" style="font-size:.84rem">${esc(g.data.weightOz)} oz</span>` : ""}
+              <span class="row-tight">${g.data.barcode ? `<span class="faint" title="Has a barcode: ${esc(g.data.barcode)}">${icon("barcode", 15)}</span>` : ""}${g.data.weightOz ? `<span class="faint nums" style="font-size:.84rem">${esc(g.data.weightOz)} oz</span>` : ""}
                 <span class="${tagClass(g)}">${esc(label[g.data.condition] || g.data.condition || "Good")}</span></span>
             </summary>${gearForm(g)}</details></li>`).join("")}</ul></div>
         </section>`).join("")}
@@ -1053,6 +1073,182 @@ Views.missing = function () {
     <p class="lede">There&rsquo;s no page here. Probably a trip that got deleted, or a link that went stale.</p>
     <a class="btn btn-primary" href="#/">Back to the logbook</a></div>`;
 };
+
+/* --------------------------------------------------------------- scanner -- */
+
+/**
+ * Barcode scanning, two ways.
+ *
+ * Chrome and Android have a native BarcodeDetector, which is fast and free.
+ * Safari — so every iPhone — does not, so ZXing is loaded from a CDN as the
+ * fallback. Either way the camera needs HTTPS, which GitHub Pages gives us,
+ * and a tap to start, which the button provides.
+ */
+const ZXING_URL = "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js";
+
+const BARCODE_FORMATS = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "itf"];
+
+/**
+ * A UPC-A is an EAN-13 with a leading zero, and readers disagree about which
+ * they report. Compare on digits with leading zeros stripped so the same label
+ * matches itself however it was read.
+ */
+function normBarcode(code) {
+  const digits = String(code || "").replace(/[^0-9A-Za-z]/g, "");
+  return /^\d+$/.test(digits) ? digits.replace(/^0+/, "") : digits.toUpperCase();
+}
+
+const Scanner = {
+  stream: null,
+  reader: null,
+  timer: null,
+  done: null,
+
+  els() {
+    return {
+      dialog: document.getElementById("scanner"),
+      stage: document.getElementById("scanner-stage"),
+      video: document.getElementById("scanner-video"),
+      msg: document.getElementById("scanner-msg"),
+      hint: document.getElementById("scanner-hint"),
+    };
+  },
+
+  say(text) {
+    const { msg, video, stage } = this.els();
+    msg.textContent = text;
+    msg.hidden = false;
+    video.hidden = true;
+    stage.dataset.idle = "1";
+  },
+
+  /** Opens the camera and calls back with the first code it reads. */
+  async open(onResult) {
+    const { dialog, video, msg, stage, hint } = this.els();
+    this.done = onResult;
+    if (!dialog.open) dialog.showModal();
+    this.say("Starting the camera…");
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      this.say("This browser can't reach a camera. You can still type the barcode into the item by hand.");
+      return;
+    }
+
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } },
+        audio: false,
+      });
+    } catch (err) {
+      const denied = err && (err.name === "NotAllowedError" || err.name === "SecurityError");
+      this.say(denied
+        ? "Camera permission was declined. Allow it in your browser's site settings, then try again."
+        : "No camera available on this device.");
+      return;
+    }
+
+    video.srcObject = this.stream;
+    video.setAttribute("playsinline", "");
+    try { await video.play(); } catch { /* autoplay can reject; the frames still arrive */ }
+    msg.hidden = true;
+    video.hidden = false;
+    stage.dataset.idle = "0";
+    hint.textContent = "Hold the tag or box label inside the frame.";
+
+    if ("BarcodeDetector" in window) {
+      await this.runNative(video);
+    } else {
+      await this.runZxing(video);
+    }
+  },
+
+  async runNative(video) {
+    let formats = BARCODE_FORMATS;
+    try {
+      const supported = await window.BarcodeDetector.getSupportedFormats();
+      formats = BARCODE_FORMATS.filter((f) => supported.includes(f));
+    } catch { /* fall through with the full list */ }
+    if (!formats.length) return this.runZxing(video);
+
+    let detector;
+    try {
+      detector = new window.BarcodeDetector({ formats });
+    } catch {
+      // Some builds advertise the API but refuse to construct it.
+      return this.runZxing(video);
+    }
+
+    this.timer = setInterval(async () => {
+      if (!this.stream || video.readyState < 2) return;
+      try {
+        const found = await detector.detect(video);
+        if (found && found.length) this.hit(found[0].rawValue);
+      } catch { /* a bad frame is not worth reporting */ }
+    }, 250);
+  },
+
+  async runZxing(video) {
+    try {
+      if (!window.ZXing) await loadScript(ZXING_URL);
+      if (!window.ZXing) throw new Error("library unavailable");
+    } catch {
+      this.say("Couldn't load the barcode reader. Check your connection, or type the barcode in by hand.");
+      return;
+    }
+    this.reader = new window.ZXing.BrowserMultiFormatReader();
+    // decodeFromStream, not decodeFromVideoElement: the latter wants to own the
+    // camera and never fires its callback on a stream we opened ourselves.
+    this.reader.decodeFromStream(this.stream, video, (result) => {
+      if (result) this.hit(result.getText());
+    }).catch(() => {
+      this.say("The barcode reader stopped unexpectedly. Close this and try again.");
+    });
+  },
+
+  hit(code) {
+    if (!code || !this.done) return;
+    const handler = this.done;
+    this.done = null;               // first read wins; ignore the rest
+    this.close();
+    handler(String(code).trim());
+  },
+
+  close() {
+    const { dialog, video } = this.els();
+    clearInterval(this.timer);
+    this.timer = null;
+    if (this.reader) {
+      try { this.reader.reset(); } catch { /* already torn down */ }
+      this.reader = null;
+    }
+    if (this.stream) {
+      for (const track of this.stream.getTracks()) track.stop();
+      this.stream = null;
+    }
+    video.srcObject = null;
+    this.done = null;
+    if (dialog.open) dialog.close();
+  },
+};
+
+/**
+ * Best effort at turning a barcode into a product name, via UPCitemdb's open
+ * trial endpoint. No key, but it is rate limited and knows nothing about a lot
+ * of outdoor gear — so this is a convenience, never a requirement. When it
+ * comes back empty you just type the name.
+ */
+async function lookupProduct(code) {
+  try {
+    const res = await fetch("https://api.upcitemdb.com/prod/trial/lookup?upc=" + encodeURIComponent(code));
+    if (!res.ok) return null;
+    const data = await res.json();
+    const hit = data && data.items && data.items[0];
+    if (!hit) return null;
+    return { title: hit.title || "", brand: hit.brand || "" };
+  } catch {
+    return null;
+  }
+}
 
 /* --------------------------------------------------------------- weather -- */
 
@@ -1313,6 +1509,7 @@ const Actions = {
       condition: v.condition || "good",
       quantity: num(v.quantity) || 1,
       weightOz: num(v.weightOz),
+      barcode: v.barcode || "",
       // "Retired" in the dropdown and the retired flag must not drift apart.
       retired: v.condition === "retired",
       notes: v.notes || "",
@@ -1442,6 +1639,63 @@ const Actions = {
 
   geocode(el) { geocode(el); },
 
+  /** Scan from the gear page: known code opens that item, new code starts one. */
+  scanGear() {
+    Scanner.open(async (code) => {
+      const existing = gearByBarcode(code);
+      if (existing) {
+        if (location.hash !== "#/gear") location.hash = "#/gear";
+        toast("Already in the closet: " + existing.data.name);
+        // Open that item's editor so it is obvious which one matched.
+        requestAnimationFrame(() => {
+          const field = document.getElementById("gear-code-" + existing.id);
+          const drawer = field && field.closest("details.drawer");
+          if (drawer) {
+            drawer.open = true;
+            drawer.scrollIntoView({ block: "center", behavior: "smooth" });
+          }
+        });
+        return;
+      }
+
+      // Unknown code: open the add form with it filled in, and try for a name.
+      const drawer = document.getElementById("add-gear");
+      if (drawer) drawer.open = true;
+      const codeField = document.getElementById("gear-code-new");
+      const nameField = document.querySelector('#add-gear input[name="name"]');
+      if (codeField) codeField.value = code;
+      if (drawer) drawer.scrollIntoView({ block: "center", behavior: "smooth" });
+      toast("New barcode — name it and add it");
+
+      const found = await lookupProduct(code);
+      if (found && nameField && !nameField.value) {
+        nameField.value = [found.brand, found.title].filter(Boolean)
+          .join(" ").replace(/\s+/g, " ").trim() || found.title;
+        nameField.focus();
+      } else if (nameField) {
+        nameField.focus();
+      }
+    });
+  },
+
+  /** Scan from inside a gear form: attach the code to the item being edited. */
+  scanInto(el) {
+    const field = el.closest(".row").querySelector('input[name="barcode"]');
+    Scanner.open((code) => {
+      const clash = gearByBarcode(code);
+      const form = el.closest("form");
+      const id = form ? form.dataset.id : "";
+      if (clash && clash.id !== id) {
+        toast("That barcode is already on " + clash.data.name);
+        return;
+      }
+      if (field) field.value = code;
+      toast("Barcode captured — save the item to keep it");
+    });
+  },
+
+  closeScanner() { Scanner.close(); },
+
   liftStrays() { Store.liftStrays(); },
   dismissStrays() { Store.dismissStrays(); },
 };
@@ -1534,6 +1788,16 @@ function renderBanner() {
       ? "Couldn&rsquo;t reach the shared logbook (" + esc(Store.error) + "), so this is saving to this browser only."
       : "Saving to this browser only — entries here won&rsquo;t reach your other devices or anyone else."}
     <a href="https://github.com/sarahhouchens-cpu/Campward/blob/HEAD/docs/SETUP.md" target="_blank" rel="noreferrer">How to share one logbook</a></span>`;
+}
+
+// Escape or a backdrop click closes the dialog natively; make sure the camera
+// is released when that happens rather than only via our own Close button.
+const scannerDialog = document.getElementById("scanner");
+if (scannerDialog) {
+  scannerDialog.addEventListener("close", () => Scanner.close());
+  scannerDialog.addEventListener("click", (event) => {
+    if (event.target === scannerDialog) Scanner.close();
+  });
 }
 
 window.addEventListener("hashchange", render);

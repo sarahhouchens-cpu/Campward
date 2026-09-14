@@ -28,6 +28,25 @@ than making a second copy.
 This lives only in this build — the Next.js version in the repository root
 does not have it.
 
+## Scanning gear
+
+The gear page has **Scan a barcode**. It uses the browser's built-in
+`BarcodeDetector` where there is one (Chrome, Android) and falls back to ZXing
+everywhere else, which is what iPhones use since Safari has no such API. The
+camera needs HTTPS and a tap to start — GitHub Pages gives the first, the
+button gives the second.
+
+Scanning a code already on an item opens that item. Scanning a new one opens
+the add form with the code filled in, and makes a best-effort attempt at the
+product name via UPCitemdb's open trial endpoint — no key, rate limited, and
+it knows nothing about most outdoor gear, so treat a filled-in name as a bonus
+rather than the point. The code is stored on the item either way, so the
+second scan of anything always finds it.
+
+UPC-A and EAN-13 are the same label with and without a leading zero, and
+readers disagree about which they report, so codes are compared with leading
+zeros stripped.
+
 ## How it differs from the app in the repository root
 
 The root of this repository holds a Next.js version of Campward that stores

@@ -11,7 +11,7 @@ no accounts, no sign-in, no cloud.
 | **Trips** | Name, location (address → coordinates), dates, notes, planned vs. logged. Each trip is the spine everything else hangs off. |
 | **Campsites** | 1–5 rating, site number, date, "would we stay again", and notes. Browsable on their own or from inside a trip. |
 | **Hikes** | Distance, elevation gain, difficulty and views rated separately, "would do again", notes. |
-| **Gear** | The closet: category, condition, quantity, weight. Items marked *Needs repair* raise a banner. |
+| **Gear** | The closet: category, condition, quantity, weight. Items marked *Needs repair* raise a banner. In the Pages build, items can carry a barcode you scan with the camera. |
 | **Packing list** | Per trip: pull items out of the closet, check them off as they go in the truck, reset for the next trip. |
 | **Weather** | Forecast, active alerts, and packing hints derived from the forecast ("Rain likely — bring the shells"). |
 | **Meals** | Meals per trip with ingredients; the ingredients roll up into one shopping list you check off as you buy. |
@@ -171,3 +171,4 @@ The rest of the interface follows the mark's cues:
 - Export a trip as a printable page
 - Track which gear actually got used, to stop packing what you never touch
 - Scale a saved meal's quantities to the number of people coming
+- Scan barcodes while packing, to tick gear onto the truck list hands-free
