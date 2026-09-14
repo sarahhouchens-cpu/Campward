@@ -28,6 +28,18 @@ than making a second copy.
 This lives only in this build — the Next.js version in the repository root
 does not have it.
 
+## Where gear is kept
+
+Each item has a **Kept in** field. It is an ordinary text box wired to a
+`<datalist>`, so typing filters the places already in use and anything that
+does not match is simply a new place — no separate "manage locations" screen
+to keep in step. Places you have actually used sort ahead of the handful of
+starter suggestions, and a place stops being suggested separately once it is
+in use.
+
+The location shows on the item's row, and beside anything still unpacked on a
+trip's list, which is when knowing where it lives is actually worth something.
+
 ## Scanning gear
 
 The gear page has **Scan a barcode**. It uses the browser's built-in

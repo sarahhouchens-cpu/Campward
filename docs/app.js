@@ -20,6 +20,10 @@ const GEAR_CATEGORIES = ["Shelter", "Sleep", "Kitchen", "Water", "Clothing",
 const GEAR_CONDITIONS = [["new", "New"], ["good", "Good"], ["worn", "Worn in"],
   ["repair", "Needs repair"], ["retired", "Retired"]];
 
+/* Somewhere to start. The list that matters is the one built from the places
+   you have actually put things, which these fall in behind. */
+const GEAR_PLACES = ["Garage", "Gear closet", "Basement", "Shed", "Truck", "Storage bin"];
+
 const MEAL_SLOTS = [["breakfast", "Breakfast"], ["lunch", "Lunch"],
   ["dinner", "Dinner"], ["snack", "Snacks"]];
 
@@ -356,6 +360,18 @@ const gear = () => Store.all("gear").sort((a, b) =>
 const forTrip = (kind, tripId) => Store.all(kind).filter((r) => r.data.tripId === tripId);
 
 /** The cookbook: meals kept for reuse, newest-named first. */
+/** Places gear is kept: the ones in use first, then the untouched suggestions. */
+function gearLocations() {
+  const seen = new Map();
+  for (const g of Store.all("gear")) {
+    const place = String(g.data.location || "").trim();
+    if (place && !seen.has(place.toLowerCase())) seen.set(place.toLowerCase(), place);
+  }
+  const used = [...seen.values()].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  const rest = GEAR_PLACES.filter((p) => !seen.has(p.toLowerCase()));
+  return used.concat(rest);
+}
+
 const gearByBarcode = (code) => {
   const key = normBarcode(code);
   return key ? Store.all("gear").find((g) => normBarcode(g.data.barcode) === key) || null : null;
@@ -641,6 +657,14 @@ function gearForm(rec) {
       <div><label>Quantity</label><input name="quantity" type="number" min="1" step="1" value="${esc(d.quantity ?? 1)}"></div>
       <div><label>Weight (oz)</label><input name="weightOz" type="number" min="0" step="0.1" value="${esc(d.weightOz ?? "")}" placeholder="51"></div>
     </div>
+    <div class="field-row">
+      <div>
+        <label for="gear-where-${esc(String(rec ? rec.id : "new"))}">Kept in</label>
+        <input id="gear-where-${esc(String(rec ? rec.id : "new"))}" name="location" type="text"
+               list="gear-locations" autocomplete="off" value="${esc(d.location || "")}"
+               placeholder="Start typing, or add a new place">
+      </div>
+    </div>
     <div class="field">
       <label for="gear-code-${esc(String(rec ? rec.id : "new"))}">Barcode</label>
       <div class="row" style="gap:.5rem;flex-wrap:nowrap">
@@ -650,7 +674,7 @@ function gearForm(rec) {
       </div>
     </div>
     <div class="field"><label>Notes</label>
-      <textarea name="notes" style="min-height:3.6rem" placeholder="Where it lives, what needs fixing, what it replaced.">${esc(d.notes || "")}</textarea></div>
+      <textarea name="notes" style="min-height:3.6rem" placeholder="What needs fixing, what it replaced, how it has held up.">${esc(d.notes || "")}</textarea></div>
     <div class="row">
       <button class="btn btn-primary btn-small" type="submit">${rec ? "Save item" : "Add to the closet"}</button>
       ${rec ? `<button class="btn-plain" type="button" data-act="deleteGear" data-id="${esc(rec.id)}">Delete this item</button>` : ""}
@@ -823,7 +847,9 @@ function packList(tripId) {
               aria-label="${p.data.packed ? "Unpack" : "Pack"} ${esc(g.data.name)}">${p.data.packed ? "✓" : ""}</button>
             <span class="grow${p.data.packed ? " done" : ""}">${esc(g.data.name)}${
               g.data.quantity > 1 ? ` <span class="faint">×${esc(g.data.quantity)}</span>` : ""}${
-              g.data.condition === "repair" ? ' <span class="tag tag-warn">Needs repair</span>' : ""}</span>
+              g.data.condition === "repair" ? ' <span class="tag tag-warn">Needs repair</span>' : ""}${
+              g.data.location && !p.data.packed
+                ? ` <span class="faint" style="font-size:.8rem">· ${esc(g.data.location)}</span>` : ""}</span>
             <button class="btn-plain" data-act="unlist" data-id="${esc(p.id)}"
               aria-label="Remove ${esc(g.data.name)} from the list">×</button>
           </li>`;
@@ -1032,7 +1058,11 @@ Views.gear = function () {
   const tagClass = (g) => g.data.condition === "repair" ? "tag tag-warn"
     : g.data.condition === "new" ? "tag tag-moss" : "tag";
 
-  return `
+  // One datalist for the whole page; each form points at it by id.
+  const places = `<datalist id="gear-locations">${
+    gearLocations().map((p) => `<option value="${esc(p)}"></option>`).join("")}</datalist>`;
+
+  return `${places}
     <header style="margin:1.4rem 0 1.3rem">
       <p class="eyebrow">Gear</p><h1 style="margin:0">The closet</h1>
       <p class="lede" style="margin-top:.5rem">${active.length === 0
@@ -1054,6 +1084,7 @@ Views.gear = function () {
             <li><details class="drawer"><summary class="row-summary">
               <span><strong class="row-name">${esc(g.data.name)}</strong>${
                 g.data.quantity > 1 ? ` <span class="faint">×${esc(g.data.quantity)}</span>` : ""}${
+                g.data.location ? `<span class="muted" style="display:block;font-size:.85rem">${esc(g.data.location)}</span>` : ""}${
                 g.data.notes ? `<span class="muted" style="display:block;font-size:.89rem">${esc(g.data.notes)}</span>` : ""}</span>
               <span class="row-tight">${g.data.barcode ? `<span class="faint" title="Has a barcode: ${esc(g.data.barcode)}">${icon("barcode", 15)}</span>` : ""}${g.data.weightOz ? `<span class="faint nums" style="font-size:.84rem">${esc(g.data.weightOz)} oz</span>` : ""}
                 <span class="${tagClass(g)}">${esc(label[g.data.condition] || g.data.condition || "Good")}</span></span>
@@ -1509,6 +1540,7 @@ const Actions = {
       condition: v.condition || "good",
       quantity: num(v.quantity) || 1,
       weightOz: num(v.weightOz),
+      location: (v.location || "").trim(),
       barcode: v.barcode || "",
       // "Retired" in the dropdown and the retired flag must not drift apart.
       retired: v.condition === "retired",
