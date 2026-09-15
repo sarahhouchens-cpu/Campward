@@ -20,6 +20,8 @@ const GEAR_CATEGORIES = ["Shelter", "Sleep", "Kitchen", "Water", "Clothing",
 const GEAR_CONDITIONS = [["new", "New"], ["good", "Good"], ["worn", "Worn in"],
   ["repair", "Needs repair"], ["retired", "Retired"]];
 
+const CATALOG = Array.isArray(window.CAMPWARD_GEAR_CATALOG) ? window.CAMPWARD_GEAR_CATALOG : [];
+
 /* Somewhere to start. The list that matters is the one built from the places
    you have actually put things, which these fall in behind. */
 const GEAR_PLACES = ["Garage", "Gear closet", "Basement", "Shed", "Truck", "Storage bin"];
@@ -372,6 +374,28 @@ function gearLocations() {
   return used.concat(rest);
 }
 
+/** Catalogue entries matching a typed query, whole-word-ish and ranked. */
+function catalogMatches(query, limit) {
+  const q = String(query || "").trim().toLowerCase();
+  if (q.length < 2) return [];
+  const scored = [];
+  for (const entry of CATALOG) {
+    const name = entry.name.toLowerCase();
+    const at = name.indexOf(q);
+    if (at === -1 && !entry.category.toLowerCase().includes(q)) continue;
+    // Something starting with what you typed beats a mention buried mid-name.
+    scored.push({ entry, rank: at === 0 ? 0 : at === -1 ? 3 : 1, at });
+  }
+  scored.sort((a, b) => a.rank - b.rank || a.entry.name.localeCompare(b.entry.name));
+  return scored.slice(0, limit || 8).map((x) => x.entry);
+}
+
+/** Case-insensitive: is this already in the closet? */
+function ownsGear(name) {
+  const key = String(name || "").trim().toLowerCase();
+  return Store.all("gear").some((g) => String(g.data.name || "").trim().toLowerCase() === key);
+}
+
 const gearByBarcode = (code) => {
   const key = normBarcode(code);
   return key ? Store.all("gear").find((g) => normBarcode(g.data.barcode) === key) || null : null;
@@ -646,8 +670,12 @@ function gearForm(rec) {
   const d = rec ? rec.data : {};
   return `<form data-act="saveGear" data-id="${esc(rec ? rec.id : "")}">
     <div class="field-row" style="margin-top:.6rem">
-      <div style="grid-column:span 2"><label>Item</label>
-        <input name="name" type="text" required value="${esc(d.name || "")}" placeholder="Copper Spur UL2"></div>
+      <div style="grid-column:span 2"><label for="gear-name-${esc(String(rec ? rec.id : "new"))}">Item</label>
+        <input id="gear-name-${esc(String(rec ? rec.id : "new"))}" name="name" type="text" required
+               autocomplete="off" value="${esc(d.name || "")}"
+               ${rec ? "" : 'data-catalog="1"'}
+               placeholder="${rec ? "Copper Spur UL2" : "Start typing — tent, stove, headlamp…"}">
+        ${rec ? "" : '<div class="suggest" id="gear-name-suggest"></div>'}</div>
       <div><label>Category</label><select name="category">
         ${GEAR_CATEGORIES.map((c) => `<option${d.category === c ? " selected" : ""}>${c}</option>`).join("")}</select></div>
     </div>
@@ -1074,6 +1102,30 @@ Views.gear = function () {
     <div class="row" style="margin-bottom:1rem">
       <button class="btn" data-act="scanGear">${icon("barcode", 17)} Scan a barcode</button>
     </div>
+
+    <details class="drawer card card-quiet" style="margin-bottom:1rem" id="gear-catalog">
+      <summary>Add from the camping gear list (${CATALOG.length})</summary>
+      <p class="muted" style="margin:.5rem 0 .7rem;font-size:.9rem">
+        The usual kit, to save typing. Tap anything to add it — you can rename it,
+        weigh it and say where it lives afterwards.</p>
+      <input type="search" id="catalog-filter" placeholder="Filter the list…"
+             aria-label="Filter the camping gear list" autocomplete="off" style="margin-bottom:.7rem">
+      <div id="catalog-list">${GEAR_CATEGORIES.filter((cat) => CATALOG.some((e) => e.category === cat))
+        .map((cat) => `<div class="catalog-group" data-cat="${esc(cat)}">
+          <p class="eyebrow" style="margin:.7rem 0 .3rem">${esc(cat)}</p>
+          <ul class="checklist">${CATALOG.filter((e) => e.category === cat).map((e) => {
+            const owned = ownsGear(e.name);
+            return `<li class="catalog-row" data-name="${esc(e.name.toLowerCase())}" data-catl="${esc(cat.toLowerCase())}">
+              <button class="btn-plain" data-act="addFromCatalog" data-name="${esc(e.name)}"
+                data-category="${esc(cat)}" aria-label="Add ${esc(e.name)}"${owned ? " disabled" : ""}>${owned ? "✓" : "＋"}</button>
+              <span class="grow${owned ? " done" : ""}">${esc(e.name)}</span>
+              ${owned ? '<span class="faint" style="font-size:.78rem">in the closet</span>' : ""}
+            </li>`;
+          }).join("")}</ul></div>`).join("")}</div>
+      <p class="faint" id="catalog-empty" hidden style="margin:.6rem 0 0;font-size:.88rem">
+        Nothing in the list matches. Type it into <strong>Add gear</strong> below — anything you
+        name yourself works just the same.</p>
+    </details>
     <details class="drawer card card-quiet" style="margin-bottom:1.5rem" id="add-gear"><summary>Add gear</summary>${gearForm(null)}</details>
     ${active.length === 0 ? emptyBlock("Nothing in the closet yet. Add the big things first — tent, bags, pads, stove.")
       : Object.keys(byCategory).sort().map((cat) => `
@@ -1726,6 +1778,38 @@ const Actions = {
     });
   },
 
+  /** One tap from the catalogue puts an item in the closet. */
+  async addFromCatalog(el) {
+    const name = el.dataset.name;
+    if (ownsGear(name)) return;
+    await Store.put("gear", null, {
+      name,
+      category: el.dataset.category || "Other",
+      condition: "good",
+      quantity: 1,
+      weightOz: null,
+      location: "",
+      barcode: "",
+      retired: false,
+      notes: "",
+      created: new Date().toISOString(),
+    });
+    toast("Added " + name);
+  },
+
+  /** Fill the add form from a suggestion under the name box. */
+  useSuggestion(el) {
+    const form = document.querySelector("#add-gear form");
+    if (!form) return;
+    form.querySelector('input[name="name"]').value = el.dataset.name;
+    const category = form.querySelector('select[name="category"]');
+    if (category && el.dataset.category) category.value = el.dataset.category;
+    const box = document.getElementById("gear-name-suggest");
+    if (box) box.innerHTML = "";
+    const where = form.querySelector('input[name="location"]');
+    if (where) where.focus();
+  },
+
   closeScanner() { Scanner.close(); },
 
   liftStrays() { Store.liftStrays(); },
@@ -1781,6 +1865,9 @@ function render() {
   if (!Store.ready) return;
   const route = currentRoute();
   const open = openDrawerKeys();
+  // Tapping down a long list re-renders on every add; keep the page still.
+  const scroll = window.scrollY;
+  const filter = (document.getElementById("catalog-filter") || {}).value || "";
   const view = Views[route.view] || Views.missing;
 
   const active = route.view === "logbook" ? "#/" :
@@ -1794,6 +1881,13 @@ function render() {
     const summary = d.querySelector("summary");
     if (summary && open.has(summary.textContent.trim())) d.open = true;
   });
+
+  const filterBox = document.getElementById("catalog-filter");
+  if (filterBox && filter) {
+    filterBox.value = filter;
+    filterBox.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  if (scroll) window.scrollTo(0, scroll);
 
   document.title = route.view === "logbook" ? "Campward — field logbook"
     : route.view === "trip" && tripTitle(route.id) ? tripTitle(route.id) + " — Campward"
@@ -1821,6 +1915,40 @@ function renderBanner() {
       : "Saving to this browser only — entries here won&rsquo;t reach your other devices or anyone else."}
     <a href="https://github.com/sarahhouchens-cpu/Campward/blob/HEAD/docs/SETUP.md" target="_blank" rel="noreferrer">How to share one logbook</a></span>`;
 }
+
+/* Typing in the name box suggests from the catalogue. Done straight against the
+   DOM rather than through render(), so the field keeps focus and the caret. */
+document.addEventListener("input", (event) => {
+  const field = event.target;
+
+  if (field.dataset && field.dataset.catalog) {
+    const box = document.getElementById("gear-name-suggest");
+    if (!box) return;
+    const hits = catalogMatches(field.value, 7).filter((e) => !ownsGear(e.name));
+    box.innerHTML = hits.length
+      ? hits.map((e) => `<button type="button" class="suggest-hit" data-act="useSuggestion"
+          data-name="${esc(e.name)}" data-category="${esc(e.category)}">
+          <span>${esc(e.name)}</span><span class="faint">${esc(e.category)}</span></button>`).join("")
+      : "";
+    return;
+  }
+
+  if (field.id === "catalog-filter") {
+    const q = field.value.trim().toLowerCase();
+    let shown = 0;
+    for (const row of document.querySelectorAll(".catalog-row")) {
+      const hit = !q || row.dataset.name.includes(q) || row.dataset.catl.includes(q);
+      row.hidden = !hit;
+      if (hit) shown++;
+    }
+    // Hide a category heading once everything under it is filtered out.
+    for (const group of document.querySelectorAll(".catalog-group")) {
+      group.hidden = ![...group.querySelectorAll(".catalog-row")].some((r) => !r.hidden);
+    }
+    const empty = document.getElementById("catalog-empty");
+    if (empty) empty.hidden = shown !== 0;
+  }
+});
 
 // Escape or a backdrop click closes the dialog natively; make sure the camera
 // is released when that happens rather than only via our own Close button.

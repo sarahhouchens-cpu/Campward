@@ -28,6 +28,29 @@ than making a second copy.
 This lives only in this build — the Next.js version in the repository root
 does not have it.
 
+## The camping gear list
+
+`gear-catalog.js` holds 178 common items by category. Two ways in: type in the
+**Item** box on the add form and matching entries appear underneath (picking
+one fills the name and category), or open **Add from the camping gear list**,
+filter it, and tap items in one at a time. Anything already in the closet is
+marked and cannot be added twice.
+
+Nothing about it is a cage — a name you type yourself works exactly the same,
+and the list is just seed data you can extend by editing the file.
+
+**Why a file and not a live feed from REI.** They publish no product API, and a
+page served from GitHub Pages cannot read their site directly: browsers block
+cross-origin reads unless the other site opts in, which retailers do not.
+Getting round that needs a server we do not have, and scraping a storefront
+from the browser would break the first time they changed their markup. A
+bundled list is instant, works with no signal, and cannot go stale in a way
+that matters.
+
+**No weights are included**, deliberately. They swing wildly between models,
+and a wrong number nobody checks would quietly corrupt the pack-weight total
+on this page. Weigh your own.
+
 ## Where gear is kept
 
 Each item has a **Kept in** field. It is an ordinary text box wired to a

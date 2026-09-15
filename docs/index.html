@@ -250,6 +250,23 @@ details.drawer[open] > summary.row-summary .row-name { color:var(--heading); }
 .dot[data-state="local"] { background:var(--warn); }
 .dot[data-state="error"] { background:#B4523F; }
 
+/* ---- catalogue search ---- */
+.suggest { position:relative; }
+.suggest:empty { display:none; }
+.suggest-hit {
+  display:flex; justify-content:space-between; gap:.6rem; width:100%; text-align:left;
+  font-family:var(--sans); font-size:.92rem; color:var(--ink); background:var(--ground);
+  border:0; border-bottom:1px dotted var(--line-soft); padding:.4rem .5rem; cursor:pointer;
+}
+.suggest-hit:first-child { border-top:1.5px solid var(--line); }
+.suggest-hit:last-child { border-bottom:1.5px solid var(--line); }
+.suggest-hit:hover, .suggest-hit:focus-visible { background:var(--surface-2); color:var(--heading); }
+.suggest-hit .faint { font-size:.76rem; letter-spacing:.06em; text-transform:uppercase; }
+
+#catalog-list { max-height:26rem; overflow-y:auto; }
+.catalog-row[hidden], .catalog-group[hidden] { display:none !important; }
+.catalog-row button[disabled] { opacity:.5; cursor:default; }
+
 /* ---- barcode scanner ---- */
 dialog.scanner {
   width:min(94vw,520px); padding:0; border:2px solid var(--edge);
@@ -339,6 +356,7 @@ dialog.scanner::backdrop { background:rgba(43,38,32,.72); }
 <div class="toast" id="toast" hidden></div>
 
 <script src="config.js"></script>
+<script src="gear-catalog.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
